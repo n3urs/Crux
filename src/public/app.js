@@ -1799,19 +1799,19 @@ const WALL_PATHS = {
     // Open line: zig-zags across top, then drops down right side
     path: 'M 100,130 L 145,155 L 260,100 L 400,155 L 530,100 L 620,100 L 660,180 L 680,300 L 690,420 L 690,450',
     fill: '#0EA5E9', label: 'Cove Wall', labelX: 350, labelY: 80, closed: false,
-    climbOffset: 28
+    climbOffset: 0
   },
   wall_mothership: {
-    // Elongated octagon in centre — climbs go OUTSIDE
+    // Elongated octagon in centre — climbs go on the perimeter
     path: 'M 280,320 L 280,245 L 320,210 L 500,205 L 540,240 L 540,320 L 500,355 L 320,360 Z',
     fill: '#EAB308', label: 'Mothership', labelX: 410, labelY: 290, closed: true,
-    climbOffset: -28
+    climbOffset: 0
   },
   wall_mystery: {
-    // Open line across bottom — shallow arch. Climbs go ABOVE (inward)
+    // Open line across bottom — shallow arch. Climbs sit on the line.
     path: 'M 120,490 L 170,530 L 380,505 L 560,520 L 650,560',
     fill: '#EF4444', label: 'Magical Mystery', labelX: 390, labelY: 555, closed: false,
-    climbOffset: -28
+    climbOffset: 0
   }
 };
 
