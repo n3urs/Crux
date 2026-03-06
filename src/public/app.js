@@ -1353,25 +1353,952 @@ async function openPOSForMember(memberId, memberName) {
 // Placeholder pages
 // ============================================================
 
-function loadEvents() {
-  document.getElementById('page-events').innerHTML = `
-    <div class="mb-6"><h2 class="text-2xl font-bold">Events & Scheduling</h2><p class="text-gray-500 mt-1">Coming soon</p></div>
-    <div class="card"><p class="text-gray-400">Events, courses, slot booker — under development.</p></div>
+// ============================================================
+// EVENTS PAGE
+// ============================================================
+
+let eventsViewMode = 'list';
+let eventsCalendarDate = new Date();
+
+async function loadEvents() {
+  const el = document.getElementById('page-events');
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">Events</h2>
+        <p class="text-gray-500 mt-1">Manage events, courses, and scheduling</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="flex bg-gray-100 rounded-lg p-0.5">
+          <button onclick="switchEventsView('list')" id="events-view-list" class="px-3 py-1.5 text-sm font-medium rounded-md transition ${eventsViewMode === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}">
+            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>List
+          </button>
+          <button onclick="switchEventsView('calendar')" id="events-view-calendar" class="px-3 py-1.5 text-sm font-medium rounded-md transition ${eventsViewMode === 'calendar' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}">
+            <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>Calendar
+          </button>
+        </div>
+        <button onclick="showCreateEventModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">+ Create Event</button>
+      </div>
+    </div>
+    <div id="events-content"></div>
+  `;
+  await renderEventsView();
+}
+
+function switchEventsView(mode) {
+  eventsViewMode = mode;
+  document.getElementById('events-view-list').className = `px-3 py-1.5 text-sm font-medium rounded-md transition ${mode === 'list' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`;
+  document.getElementById('events-view-calendar').className = `px-3 py-1.5 text-sm font-medium rounded-md transition ${mode === 'calendar' ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'}`;
+  renderEventsView();
+}
+
+async function renderEventsView() {
+  const container = document.getElementById('events-content');
+  if (!container) return;
+
+  try {
+    const events = await api('GET', '/api/events/list?perPage=100');
+    if (eventsViewMode === 'list') {
+      renderEventsListView(container, events);
+    } else {
+      renderEventsCalendarView(container, events);
+    }
+  } catch (err) {
+    container.innerHTML = `<p class="text-red-400">Error loading events: ${err.message}</p>`;
+  }
+}
+
+function renderEventsListView(container, events) {
+  if (events.length === 0) {
+    container.innerHTML = `
+      <div class="bg-white border border-gray-200 rounded-xl p-12 text-center">
+        <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        <p class="text-gray-500 font-medium">No events yet</p>
+        <p class="text-gray-400 text-sm mt-1">Create your first event to get started</p>
+      </div>
+    `;
+    return;
+  }
+
+  const statusBadge = (s) => {
+    const map = { scheduled: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700', completed: 'bg-gray-100 text-gray-600' };
+    return `<span class="px-2 py-0.5 rounded-full text-xs font-medium ${map[s] || 'bg-gray-100 text-gray-600'}">${s.charAt(0).toUpperCase() + s.slice(1)}</span>`;
+  };
+
+  container.innerHTML = `
+    <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+      <table class="w-full">
+        <thead>
+          <tr class="text-left text-xs text-gray-500 uppercase border-b border-gray-100 bg-gray-50">
+            <th class="px-4 py-3">Event</th>
+            <th class="px-4 py-3">Date / Time</th>
+            <th class="px-4 py-3 text-center">Capacity</th>
+            <th class="px-4 py-3 text-right">Price</th>
+            <th class="px-4 py-3 text-center">Status</th>
+            <th class="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${events.map(ev => {
+            const start = new Date(ev.starts_at);
+            const end = new Date(ev.ends_at);
+            const dateStr = start.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short' });
+            const timeStr = start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' – ' + end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const capacityStr = ev.capacity ? `${ev.current_enrolment || 0}/${ev.capacity}` : '—';
+            const capacityPct = ev.capacity ? ((ev.current_enrolment || 0) / ev.capacity * 100) : 0;
+            const priceStr = ev.price > 0 ? `£${parseFloat(ev.price).toFixed(2)}` : 'Free';
+            return `
+              <tr class="border-b border-gray-50 hover:bg-gray-50 cursor-pointer" onclick="openEventDetail('${ev.id}')">
+                <td class="px-4 py-3">
+                  <p class="font-medium text-gray-900">${ev.name}</p>
+                  ${ev.tags ? `<p class="text-xs text-gray-400 mt-0.5">${ev.tags}</p>` : ''}
+                </td>
+                <td class="px-4 py-3">
+                  <p class="text-sm text-gray-900">${dateStr}</p>
+                  <p class="text-xs text-gray-500">${timeStr}</p>
+                </td>
+                <td class="px-4 py-3 text-center">
+                  <span class="text-sm font-medium ${capacityPct >= 90 ? 'text-red-600' : capacityPct >= 70 ? 'text-yellow-600' : 'text-gray-700'}">${capacityStr}</span>
+                  ${ev.capacity ? `<div class="w-16 h-1.5 bg-gray-200 rounded-full mx-auto mt-1"><div class="h-full rounded-full ${capacityPct >= 90 ? 'bg-red-500' : capacityPct >= 70 ? 'bg-yellow-500' : 'bg-green-500'}" style="width:${Math.min(capacityPct, 100)}%"></div></div>` : ''}
+                </td>
+                <td class="px-4 py-3 text-right text-sm font-medium ${ev.price > 0 ? 'text-gray-900' : 'text-green-600'}">${priceStr}</td>
+                <td class="px-4 py-3 text-center">${statusBadge(ev.status)}</td>
+                <td class="px-4 py-3 text-right">
+                  <button onclick="event.stopPropagation(); openEventDetail('${ev.id}')" class="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition" title="View Details">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </button>
+                </td>
+              </tr>
+            `;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>
   `;
 }
 
-function loadRoutes() {
-  document.getElementById('page-routes').innerHTML = `
-    <div class="mb-6"><h2 class="text-2xl font-bold">Routes</h2><p class="text-gray-500 mt-1">Coming soon</p></div>
-    <div class="card"><p class="text-gray-400">Route management, gym map, logbooks — under development.</p></div>
+function renderEventsCalendarView(container, events) {
+  const year = eventsCalendarDate.getFullYear();
+  const month = eventsCalendarDate.getMonth();
+  const monthName = eventsCalendarDate.toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startOffset = (firstDay + 6) % 7; // Monday=0
+
+  // Map events to dates
+  const eventsByDate = {};
+  events.forEach(ev => {
+    const d = new Date(ev.starts_at).toISOString().split('T')[0];
+    if (!eventsByDate[d]) eventsByDate[d] = [];
+    eventsByDate[d].push(ev);
+  });
+
+  const today = new Date().toISOString().split('T')[0];
+  let cells = '';
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  for (let i = 0; i < startOffset; i++) {
+    cells += `<div class="min-h-[100px] bg-gray-50 border border-gray-100 rounded-lg p-1"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const isToday = dateStr === today;
+    const dayEvents = eventsByDate[dateStr] || [];
+
+    cells += `
+      <div class="min-h-[100px] border border-gray-200 rounded-lg p-1.5 ${isToday ? 'bg-blue-50 border-blue-300' : 'bg-white hover:bg-gray-50'}">
+        <div class="text-xs font-medium ${isToday ? 'text-blue-700' : 'text-gray-500'} mb-1">${d}</div>
+        ${dayEvents.slice(0, 3).map(ev => {
+          const time = new Date(ev.starts_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+          const statusColor = ev.status === 'cancelled' ? 'bg-red-200 text-red-800' : 'bg-blue-200 text-blue-800';
+          return `<div onclick="openEventDetail('${ev.id}')" class="text-xs px-1.5 py-0.5 rounded ${statusColor} mb-0.5 truncate cursor-pointer hover:opacity-80" title="${ev.name}">${time} ${ev.name}</div>`;
+        }).join('')}
+        ${dayEvents.length > 3 ? `<div class="text-xs text-gray-400">+${dayEvents.length - 3} more</div>` : ''}
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="bg-white border border-gray-200 rounded-xl p-4">
+      <div class="flex items-center justify-between mb-4">
+        <button onclick="eventsCalendarNav(-1)" class="p-2 rounded-lg hover:bg-gray-100 transition">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        </button>
+        <h3 class="text-lg font-semibold text-gray-900">${monthName}</h3>
+        <button onclick="eventsCalendarNav(1)" class="p-2 rounded-lg hover:bg-gray-100 transition">
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+        </button>
+      </div>
+      <div class="grid grid-cols-7 gap-1 mb-1">
+        ${dayNames.map(d => `<div class="text-xs font-medium text-gray-500 text-center py-1">${d}</div>`).join('')}
+      </div>
+      <div class="grid grid-cols-7 gap-1">
+        ${cells}
+      </div>
+    </div>
   `;
 }
 
-function loadAnalytics() {
-  document.getElementById('page-analytics').innerHTML = `
-    <div class="mb-6"><h2 class="text-2xl font-bold">Analytics</h2><p class="text-gray-500 mt-1">Coming soon</p></div>
-    <div class="card"><p class="text-gray-400">Dashboards, reports, retention analytics — under development.</p></div>
+function eventsCalendarNav(dir) {
+  eventsCalendarDate.setMonth(eventsCalendarDate.getMonth() + dir);
+  renderEventsView();
+}
+
+function showCreateEventModal() {
+  const now = new Date();
+  const defaultStart = new Date(now.getTime() + 86400000);
+  defaultStart.setMinutes(0, 0, 0);
+  const startStr = defaultStart.toISOString().slice(0, 16);
+  const endDate = new Date(defaultStart.getTime() + 3600000);
+  const endStr = endDate.toISOString().slice(0, 16);
+
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto';
+  showModal(`
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-gray-900">Create Event</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <form id="create-event-form" onsubmit="submitCreateEvent(event)">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Event Name *</label>
+            <input type="text" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="e.g. Saturday Morning Yoga">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Optional description..."></textarea>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Start Date/Time *</label>
+              <input type="datetime-local" name="starts_at" required value="${startStr}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">End Date/Time *</label>
+              <input type="datetime-local" name="ends_at" required value="${endStr}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Capacity *</label>
+              <input type="number" name="capacity" required min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="20">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Price (£)</label>
+              <input type="number" name="price" step="0.01" min="0" value="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+            <input type="text" name="tags" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="yoga, social, kids (comma-separated)">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Min Participants</label>
+              <input type="number" name="min_participants" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Auto-Cancel Deadline</label>
+              <input type="datetime-local" name="auto_cancel_deadline" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              <option value="scheduled">Scheduled</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+        <div id="create-event-error" class="text-red-500 text-sm mt-3 hidden"></div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium">Create Event</button>
+        </div>
+      </form>
+    </div>
+  `);
+}
+
+async function submitCreateEvent(e) {
+  e.preventDefault();
+  const form = document.getElementById('create-event-form');
+  const data = Object.fromEntries(new FormData(form));
+  data.starts_at = new Date(data.starts_at).toISOString();
+  data.ends_at = new Date(data.ends_at).toISOString();
+  data.capacity = parseInt(data.capacity) || null;
+  data.price = parseFloat(data.price) || 0;
+  data.min_participants = data.min_participants ? parseInt(data.min_participants) : null;
+  data.auto_cancel_deadline = data.auto_cancel_deadline ? new Date(data.auto_cancel_deadline).toISOString() : null;
+  if (!data.tags) delete data.tags;
+  if (!data.description) delete data.description;
+
+  try {
+    await api('POST', '/api/events', data);
+    closeModal();
+    showToast('Event created', 'success');
+    await renderEventsView();
+  } catch (err) {
+    const errEl = document.getElementById('create-event-error');
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function openEventDetail(eventId) {
+  try {
+    const ev = await api('GET', `/api/events/${eventId}`);
+    if (!ev) { showToast('Event not found', 'error'); return; }
+
+    const start = new Date(ev.starts_at);
+    const end = new Date(ev.ends_at);
+    const dateStr = start.toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const timeStr = start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) + ' – ' + end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    const priceStr = ev.price > 0 ? `£${parseFloat(ev.price).toFixed(2)}` : 'Free';
+    const statusMap = { scheduled: 'bg-green-100 text-green-700', cancelled: 'bg-red-100 text-red-700', completed: 'bg-gray-100 text-gray-600' };
+    const enrolled = (ev.enrolments || []).filter(e => e.status === 'enrolled' || e.status === 'attended');
+
+    document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto';
+    showModal(`
+      <div class="p-6">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h3 class="text-xl font-bold text-gray-900">${ev.name}</h3>
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${statusMap[ev.status] || 'bg-gray-100 text-gray-600'}">${ev.status.charAt(0).toUpperCase() + ev.status.slice(1)}</span>
+          </div>
+          <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase font-medium">Date</p>
+            <p class="text-sm font-medium text-gray-900 mt-0.5">${dateStr}</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase font-medium">Time</p>
+            <p class="text-sm font-medium text-gray-900 mt-0.5">${timeStr}</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase font-medium">Capacity</p>
+            <p class="text-sm font-medium text-gray-900 mt-0.5">${ev.capacity ? `${ev.current_enrolment || 0} / ${ev.capacity}` : 'Unlimited'}</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase font-medium">Price</p>
+            <p class="text-sm font-medium text-gray-900 mt-0.5">${priceStr}</p>
+          </div>
+        </div>
+        ${ev.description ? `<div class="mb-4"><p class="text-xs text-gray-500 uppercase font-medium mb-1">Description</p><p class="text-sm text-gray-700">${ev.description}</p></div>` : ''}
+        ${ev.tags ? `<div class="mb-4"><p class="text-xs text-gray-500 uppercase font-medium mb-1">Tags</p><div class="flex flex-wrap gap-1">${ev.tags.split(',').map(t => `<span class="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">${t.trim()}</span>`).join('')}</div></div>` : ''}
+
+        <div class="border-t border-gray-200 pt-4 mb-4">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-semibold text-gray-900">Enrolled Members (${enrolled.length})</h4>
+            ${ev.status === 'scheduled' ? `<button onclick="showAddMemberToEventModal('${ev.id}')" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-lg transition">+ Add Member</button>` : ''}
+          </div>
+          ${enrolled.length === 0
+            ? '<p class="text-gray-400 text-sm">No members enrolled yet</p>'
+            : `<div class="space-y-2 max-h-48 overflow-y-auto">${enrolled.map(en => `
+                <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
+                  <div class="flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:${nameToColour(en.first_name + en.last_name)}">${getInitials(en.first_name, en.last_name).toUpperCase()}</div>
+                    <span class="text-sm font-medium">${en.first_name} ${en.last_name}</span>
+                  </div>
+                  <span class="text-xs text-gray-400">${formatDate(en.enrolled_at)}</span>
+                </div>
+              `).join('')}</div>`
+          }
+        </div>
+
+        ${ev.status === 'scheduled' ? `
+          <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
+            <button onclick="cancelEventAction('${ev.id}')" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition text-sm font-medium">Cancel Event</button>
+          </div>
+        ` : ''}
+      </div>
+    `);
+  } catch (err) {
+    showToast('Error loading event: ' + err.message, 'error');
+  }
+}
+
+async function cancelEventAction(eventId) {
+  if (!confirm('Are you sure you want to cancel this event? All enrolments will be cancelled.')) return;
+  try {
+    await api('POST', `/api/events/${eventId}/cancel`, { reason: 'Cancelled by staff' });
+    closeModal();
+    showToast('Event cancelled', 'success');
+    await renderEventsView();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+function showAddMemberToEventModal(eventId) {
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto';
+  showModal(`
+    <div class="p-6">
+      <h3 class="text-lg font-bold text-gray-900 mb-4">Add Member to Event</h3>
+      <input type="text" id="event-member-search" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 mb-3" placeholder="Search member by name..." oninput="searchMembersForEvent(this.value, '${eventId}')">
+      <div id="event-member-results" class="max-h-64 overflow-y-auto"></div>
+      <div class="flex justify-end mt-4">
+        <button onclick="openEventDetail('${eventId}')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm font-medium">Back</button>
+      </div>
+    </div>
+  `);
+}
+
+let eventMemberSearchTimer = null;
+async function searchMembersForEvent(query, eventId) {
+  clearTimeout(eventMemberSearchTimer);
+  if (query.length < 2) { document.getElementById('event-member-results').innerHTML = ''; return; }
+  eventMemberSearchTimer = setTimeout(async () => {
+    try {
+      const members = await api('GET', `/api/members/search?q=${encodeURIComponent(query)}&limit=10`);
+      const results = document.getElementById('event-member-results');
+      results.innerHTML = members.map(m => `
+        <div onclick="enrolMemberInEvent('${eventId}', '${m.id}')" class="flex items-center gap-2 p-2 rounded-lg hover:bg-blue-50 cursor-pointer transition">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold" style="background:${nameToColour(m.first_name + m.last_name)}">${getInitials(m.first_name, m.last_name).toUpperCase()}</div>
+          <div><p class="text-sm font-medium">${m.first_name} ${m.last_name}</p><p class="text-xs text-gray-400">${m.email || ''}</p></div>
+        </div>
+      `).join('') || '<p class="text-gray-400 text-sm">No members found</p>';
+    } catch (err) {}
+  }, 300);
+}
+
+async function enrolMemberInEvent(eventId, memberId) {
+  try {
+    await api('POST', '/api/events/enrol', { eventId, memberId });
+    showToast('Member enrolled', 'success');
+    openEventDetail(eventId);
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+// ============================================================
+// ROUTES PAGE
+// ============================================================
+
+const GRADE_COLOURS = {
+  VB: '#22C55E', V0: '#3B82F6', V1: '#0EA5E9', V2: '#EAB308', V3: '#F97316',
+  V4: '#EF4444', V5: '#EC4899', V6: '#A855F7', V7: '#6366F1', V8: '#6B7280', V9: '#1a1a1a'
+};
+
+const HOLD_COLOURS = {
+  Black: '#1a1a1a', Yellow: '#EAB308', Green: '#22C55E', Purple: '#A855F7', Mint: '#34D399', Red: '#EF4444'
+};
+
+let routesWallFilter = null;
+
+async function loadRoutes() {
+  const el = document.getElementById('page-routes');
+  el.innerHTML = `
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h2 class="text-2xl font-bold text-gray-900">Routes</h2>
+        <p class="text-gray-500 mt-1">Manage climbs across all walls</p>
+      </div>
+      <button onclick="showAddClimbModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">+ Add Climb</button>
+    </div>
+
+    <!-- Wall Filter Tabs -->
+    <div class="flex gap-2 mb-6" id="wall-filter-tabs"></div>
+
+    <!-- Grade Distribution -->
+    <div class="bg-white border border-gray-200 rounded-xl p-4 mb-6" id="grade-distribution-chart"></div>
+
+    <!-- Climb Cards -->
+    <div id="routes-climb-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
   `;
+
+  await renderRoutesPage();
+}
+
+async function renderRoutesPage() {
+  try {
+    const [walls, activeClimbs, strippedClimbs, gradeDist] = await Promise.all([
+      api('GET', '/api/routes/walls'),
+      api('GET', `/api/routes/climbs?status=active${routesWallFilter ? '&wallId=' + routesWallFilter : ''}`),
+      api('GET', `/api/routes/climbs?status=stripped${routesWallFilter ? '&wallId=' + routesWallFilter : ''}`),
+      api('GET', `/api/routes/grade-distribution${routesWallFilter ? '?wallId=' + routesWallFilter : ''}`),
+    ]);
+
+    const allClimbs = [...activeClimbs, ...strippedClimbs];
+
+    // Wall filter tabs
+    const tabContainer = document.getElementById('wall-filter-tabs');
+    if (tabContainer) {
+      tabContainer.innerHTML = `
+        <button onclick="setWallFilter(null)" class="px-4 py-2 rounded-lg text-sm font-medium transition ${!routesWallFilter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">All</button>
+        ${walls.map(w => `
+          <button onclick="setWallFilter('${w.id}')" class="px-4 py-2 rounded-lg text-sm font-medium transition ${routesWallFilter === w.id ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}">${w.name}</button>
+        `).join('')}
+      `;
+    }
+
+    // Grade distribution bar chart
+    const chartContainer = document.getElementById('grade-distribution-chart');
+    if (chartContainer) {
+      const grades = ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9'];
+      const gradeMap = {};
+      gradeDist.forEach(g => gradeMap[g.grade] = g.count);
+      const maxCount = Math.max(...grades.map(g => gradeMap[g] || 0), 1);
+
+      chartContainer.innerHTML = `
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Grade Distribution</h3>
+        <div class="flex items-end gap-2 h-24">
+          ${grades.map(g => {
+            const count = gradeMap[g] || 0;
+            const height = count > 0 ? Math.max((count / maxCount) * 100, 8) : 0;
+            return `
+              <div class="flex-1 flex flex-col items-center gap-1">
+                <span class="text-xs font-medium text-gray-500">${count}</span>
+                <div class="w-full rounded-t" style="height:${height}%;background:${GRADE_COLOURS[g] || '#9CA3AF'};min-height:${count > 0 ? '4px' : '0'}"></div>
+                <span class="text-xs text-gray-500 font-medium">${g}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    // Climb cards grid
+    const grid = document.getElementById('routes-climb-grid');
+    if (grid) {
+      if (allClimbs.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-3 bg-white border border-gray-200 rounded-xl p-12 text-center">
+            <p class="text-gray-500 font-medium">No climbs found</p>
+            <p class="text-gray-400 text-sm mt-1">Add your first climb to get started</p>
+          </div>
+        `;
+      } else {
+        grid.innerHTML = allClimbs.map(c => {
+          const holdColour = HOLD_COLOURS[c.colour] || '#6B7280';
+          const gradeColour = GRADE_COLOURS[c.grade] || '#6B7280';
+          const isStripped = c.status === 'stripped';
+          const textOnHold = ['Yellow', 'Mint'].includes(c.colour) ? 'text-gray-900' : 'text-white';
+
+          return `
+            <div onclick="openClimbDetail('${c.id}')" class="bg-white border border-gray-200 rounded-xl p-4 hover:shadow-md hover:border-blue-300 transition cursor-pointer ${isStripped ? 'opacity-60' : ''}">
+              <div class="flex items-start justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="px-2.5 py-1 rounded-lg text-sm font-bold ${textOnHold}" style="background:${holdColour}">${c.grade}</span>
+                  <span class="text-sm font-medium text-gray-900">${c.wall_name}</span>
+                </div>
+                ${isStripped
+                  ? '<span class="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">Stripped</span>'
+                  : '<span class="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full font-medium">Active</span>'}
+              </div>
+              <div class="space-y-1 text-sm text-gray-500">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-3 h-3 rounded-full" style="background:${holdColour}"></span>
+                  <span>${c.colour}</span>
+                </div>
+                ${c.setter ? `<p>Setter: <span class="text-gray-700 font-medium">${c.setter}</span></p>` : ''}
+                <p>Set: ${formatDate(c.date_set)}</p>
+                ${c.style_tags ? `<div class="flex flex-wrap gap-1 mt-2">${c.style_tags.split(',').map(t => `<span class="px-1.5 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">${t.trim()}</span>`).join('')}</div>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+  } catch (err) {
+    const grid = document.getElementById('routes-climb-grid');
+    if (grid) grid.innerHTML = `<p class="text-red-400 col-span-3">Error: ${err.message}</p>`;
+  }
+}
+
+function setWallFilter(wallId) {
+  routesWallFilter = wallId;
+  renderRoutesPage();
+}
+
+function showAddClimbModal(existingClimb = null) {
+  const isEdit = !!existingClimb;
+  const title = isEdit ? 'Edit Climb' : 'Add Climb';
+  const today = new Date().toISOString().split('T')[0];
+
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto';
+  showModal(`
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-xl font-bold text-gray-900">${title}</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <form id="climb-form" onsubmit="submitClimbForm(event, ${isEdit ? `'${existingClimb.id}'` : 'null'})">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Wall *</label>
+            <select name="wall_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              <option value="wall_cove" ${isEdit && existingClimb.wall_id === 'wall_cove' ? 'selected' : ''}>Cove Wall</option>
+              <option value="wall_mothership" ${isEdit && existingClimb.wall_id === 'wall_mothership' ? 'selected' : ''}>Mothership</option>
+              <option value="wall_mystery" ${isEdit && existingClimb.wall_id === 'wall_mystery' ? 'selected' : ''}>Magical Mystery</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Grade *</label>
+              <select name="grade" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                ${['VB','V0','V1','V2','V3','V4','V5','V6','V7','V8','V9'].map(g =>
+                  `<option value="${g}" ${isEdit && existingClimb.grade === g ? 'selected' : ''} style="color:${GRADE_COLOURS[g]}">${g}</option>`
+                ).join('')}
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Hold Colour *</label>
+              <select name="colour" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onchange="updateColourPreview(this)">
+                ${Object.entries(HOLD_COLOURS).map(([name, hex]) =>
+                  `<option value="${name}" ${isEdit && existingClimb.colour === name ? 'selected' : ''}>${name}</option>`
+                ).join('')}
+              </select>
+              <div id="colour-preview" class="mt-1 h-3 rounded" style="background:${isEdit ? HOLD_COLOURS[existingClimb.colour] : HOLD_COLOURS.Black}"></div>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Setter Name</label>
+            <input type="text" name="setter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value="${isEdit ? (existingClimb.setter || '') : ''}" placeholder="Who set this climb?">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Style Tags</label>
+            <input type="text" name="style_tags" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value="${isEdit ? (existingClimb.style_tags || '') : ''}" placeholder="crimpy, overhang, dynamic (comma-separated)">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date Set</label>
+            <input type="date" name="date_set" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" value="${isEdit ? (existingClimb.date_set || today) : today}">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <textarea name="notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" placeholder="Any additional notes...">${isEdit ? (existingClimb.notes || '') : ''}</textarea>
+          </div>
+        </div>
+        <div id="climb-form-error" class="text-red-500 text-sm mt-3 hidden"></div>
+        <div class="flex justify-end gap-2 mt-6">
+          <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm font-medium">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm font-medium">${isEdit ? 'Save Changes' : 'Add Climb'}</button>
+        </div>
+      </form>
+    </div>
+  `);
+}
+
+function updateColourPreview(select) {
+  const preview = document.getElementById('colour-preview');
+  if (preview) preview.style.background = HOLD_COLOURS[select.value] || '#6B7280';
+}
+
+async function submitClimbForm(e, climbId) {
+  e.preventDefault();
+  const form = document.getElementById('climb-form');
+  const data = Object.fromEntries(new FormData(form));
+  if (!data.setter) delete data.setter;
+  if (!data.style_tags) delete data.style_tags;
+  if (!data.notes) delete data.notes;
+
+  try {
+    if (climbId) {
+      await api('PUT', `/api/routes/climbs/${climbId}`, data);
+      showToast('Climb updated', 'success');
+    } else {
+      await api('POST', '/api/routes/climbs', data);
+      showToast('Climb added', 'success');
+    }
+    closeModal();
+    await renderRoutesPage();
+  } catch (err) {
+    const errEl = document.getElementById('climb-form-error');
+    errEl.textContent = err.message;
+    errEl.classList.remove('hidden');
+  }
+}
+
+async function openClimbDetail(climbId) {
+  try {
+    const [climb, feedback] = await Promise.all([
+      api('GET', `/api/routes/climbs/${climbId}`),
+      api('GET', `/api/routes/feedback/${climbId}`).catch(() => []),
+    ]);
+    if (!climb) { showToast('Climb not found', 'error'); return; }
+
+    const holdColour = HOLD_COLOURS[climb.colour] || '#6B7280';
+    const textOnHold = ['Yellow', 'Mint'].includes(climb.colour) ? 'text-gray-900' : 'text-white';
+    const isActive = climb.status === 'active';
+
+    document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto';
+    showModal(`
+      <div class="p-6">
+        <div class="flex items-start justify-between mb-4">
+          <div class="flex items-center gap-3">
+            <span class="px-3 py-1.5 rounded-lg text-lg font-bold ${textOnHold}" style="background:${holdColour}">${climb.grade}</span>
+            <div>
+              <h3 class="text-lg font-bold text-gray-900">${climb.wall_name}</h3>
+              <span class="px-2 py-0.5 rounded-full text-xs font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${climb.status.charAt(0).toUpperCase() + climb.status.slice(1)}</span>
+            </div>
+          </div>
+          <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mb-4">
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase">Hold Colour</p>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="w-4 h-4 rounded-full" style="background:${holdColour}"></span>
+              <span class="text-sm font-medium">${climb.colour}</span>
+            </div>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase">Setter</p>
+            <p class="text-sm font-medium mt-1">${climb.setter || 'Unknown'}</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase">Date Set</p>
+            <p class="text-sm font-medium mt-1">${formatDate(climb.date_set)}</p>
+          </div>
+          <div class="bg-gray-50 rounded-lg p-3">
+            <p class="text-xs text-gray-500 uppercase">Stats</p>
+            <p class="text-sm font-medium mt-1">${climb.log_count} logs · ${climb.send_count} sends</p>
+          </div>
+        </div>
+
+        ${climb.style_tags ? `<div class="mb-4"><p class="text-xs text-gray-500 uppercase mb-1">Style</p><div class="flex flex-wrap gap-1">${climb.style_tags.split(',').map(t => `<span class="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded-full">${t.trim()}</span>`).join('')}</div></div>` : ''}
+        ${climb.notes ? `<div class="mb-4"><p class="text-xs text-gray-500 uppercase mb-1">Notes</p><p class="text-sm text-gray-700">${climb.notes}</p></div>` : ''}
+
+        ${climb.avg_rating > 0 ? `<div class="mb-4"><p class="text-xs text-gray-500 uppercase mb-1">Rating</p><p class="text-sm">${'★'.repeat(Math.round(climb.avg_rating))}${'☆'.repeat(5 - Math.round(climb.avg_rating))} <span class="text-gray-400">(${climb.feedback_count} reviews)</span></p></div>` : ''}
+
+        ${feedback.length > 0 ? `
+          <div class="mb-4 border-t border-gray-200 pt-4">
+            <p class="text-xs text-gray-500 uppercase mb-2">Feedback</p>
+            <div class="space-y-2 max-h-32 overflow-y-auto">
+              ${feedback.slice(0, 5).map(f => `
+                <div class="bg-gray-50 rounded-lg p-2">
+                  <div class="flex items-center gap-2">
+                    ${f.rating ? `<span class="text-xs">${'★'.repeat(f.rating)}</span>` : ''}
+                    ${f.grade_opinion ? `<span class="px-1.5 py-0.5 text-xs rounded ${f.grade_opinion === 'soft' ? 'bg-green-100 text-green-700' : f.grade_opinion === 'hard' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}">${f.grade_opinion}</span>` : ''}
+                    ${f.first_name ? `<span class="text-xs text-gray-400">${f.first_name} ${f.last_name}</span>` : ''}
+                  </div>
+                  ${f.comment ? `<p class="text-xs text-gray-600 mt-1">${f.comment}</p>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-gray-200">
+          <button onclick="editClimbFromDetail('${climb.id}')" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition text-sm font-medium">Edit</button>
+          ${isActive ? `<button onclick="stripClimbAction('${climb.id}')" class="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg transition text-sm font-medium">Strip Climb</button>` : ''}
+        </div>
+      </div>
+    `);
+  } catch (err) {
+    showToast('Error loading climb: ' + err.message, 'error');
+  }
+}
+
+async function editClimbFromDetail(climbId) {
+  try {
+    const climb = await api('GET', `/api/routes/climbs/${climbId}`);
+    showAddClimbModal(climb);
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function stripClimbAction(climbId) {
+  if (!confirm('Strip this climb? This will mark it as stripped.')) return;
+  try {
+    await api('POST', `/api/routes/climbs/${climbId}/strip`);
+    closeModal();
+    showToast('Climb stripped', 'success');
+    await renderRoutesPage();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+// ============================================================
+// ANALYTICS PAGE
+// ============================================================
+
+async function loadAnalytics() {
+  const el = document.getElementById('page-analytics');
+  el.innerHTML = `
+    <div class="mb-6">
+      <h2 class="text-2xl font-bold text-gray-900">Analytics</h2>
+      <p class="text-gray-500 mt-1">Dashboard overview and key metrics</p>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="analytics-summary-cards">
+      ${[1,2,3,4].map(() => `<div class="bg-white border border-gray-200 rounded-xl p-4 animate-pulse"><div class="h-4 bg-gray-200 rounded w-20 mb-2"></div><div class="h-8 bg-gray-200 rounded w-16"></div></div>`).join('')}
+    </div>
+
+    <!-- Charts Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div class="bg-white border border-gray-200 rounded-xl p-4" id="analytics-revenue-chart">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Revenue (Last 7 Days)</h3>
+        <div class="h-40 flex items-center justify-center text-gray-400 text-sm">Loading...</div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4" id="analytics-checkin-chart">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Check-in Trends (Last 7 Days)</h3>
+        <div class="h-40 flex items-center justify-center text-gray-400 text-sm">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Bottom Row -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white border border-gray-200 rounded-xl p-4" id="analytics-popular-products">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Popular Products</h3>
+        <div class="text-gray-400 text-sm text-center py-4">Loading...</div>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4" id="analytics-grade-dist">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Grade Distribution (Active Climbs)</h3>
+        <div class="text-gray-400 text-sm text-center py-4">Loading...</div>
+      </div>
+    </div>
+  `;
+
+  // Load all data in parallel
+  try {
+    const [dashboard, revenueDaily, checkinsDaily, products, gradeDist] = await Promise.all([
+      api('GET', '/api/stats/dashboard'),
+      api('GET', '/api/stats/revenue-daily?days=7'),
+      api('GET', '/api/stats/checkins-daily?days=7'),
+      api('GET', '/api/stats/popular-products?limit=10&days=30'),
+      api('GET', '/api/routes/grade-distribution'),
+    ]);
+
+    // Summary cards
+    const cards = document.getElementById('analytics-summary-cards');
+    cards.innerHTML = `
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-xs text-gray-500 uppercase font-medium">Total Members</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">${dashboard.totalMembers.toLocaleString()}</p>
+        <p class="text-xs text-gray-400 mt-1">${dashboard.activeMembers} with active pass</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-xs text-gray-500 uppercase font-medium">Visitors Today</p>
+        <p class="text-2xl font-bold text-blue-600 mt-1">${dashboard.todayCheckIns}</p>
+        <p class="text-xs text-gray-400 mt-1">Check-ins today</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-xs text-gray-500 uppercase font-medium">Revenue Today</p>
+        <p class="text-2xl font-bold text-green-600 mt-1">£${parseFloat(dashboard.todayRevenue).toFixed(2)}</p>
+        <p class="text-xs text-gray-400 mt-1">£${parseFloat(dashboard.weekRevenue).toFixed(2)} this week</p>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-xl p-4">
+        <p class="text-xs text-gray-500 uppercase font-medium">Transactions Today</p>
+        <p class="text-2xl font-bold text-gray-900 mt-1">${dashboard.todayTransactions || 0}</p>
+        <p class="text-xs text-gray-400 mt-1">Completed today</p>
+      </div>
+    `;
+
+    // Revenue bar chart
+    const revenueContainer = document.getElementById('analytics-revenue-chart');
+    if (revenueDaily.length > 0) {
+      const maxRev = Math.max(...revenueDaily.map(r => r.revenue), 1);
+      revenueContainer.innerHTML = `
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Revenue (Last 7 Days)</h3>
+        <div class="flex items-end gap-2 h-40">
+          ${revenueDaily.map(r => {
+            const height = r.revenue > 0 ? Math.max((r.revenue / maxRev) * 100, 5) : 0;
+            const dayLabel = new Date(r.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' });
+            return `
+              <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                <span class="text-xs font-medium text-gray-600">£${parseFloat(r.revenue).toFixed(0)}</span>
+                <div class="w-full bg-green-500 rounded-t transition-all" style="height:${height}%"></div>
+                <span class="text-xs text-gray-500">${dayLabel}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      revenueContainer.innerHTML = `<h3 class="text-sm font-semibold text-gray-700 mb-3">Revenue (Last 7 Days)</h3><p class="text-gray-400 text-sm text-center py-8">No revenue data</p>`;
+    }
+
+    // Check-in bar chart
+    const checkinContainer = document.getElementById('analytics-checkin-chart');
+    if (checkinsDaily.length > 0) {
+      const maxCI = Math.max(...checkinsDaily.map(c => c.count), 1);
+      checkinContainer.innerHTML = `
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Check-in Trends (Last 7 Days)</h3>
+        <div class="flex items-end gap-2 h-40">
+          ${checkinsDaily.map(c => {
+            const height = c.count > 0 ? Math.max((c.count / maxCI) * 100, 5) : 0;
+            const dayLabel = new Date(c.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short' });
+            return `
+              <div class="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                <span class="text-xs font-medium text-gray-600">${c.count}</span>
+                <div class="w-full bg-blue-500 rounded-t transition-all" style="height:${height}%"></div>
+                <span class="text-xs text-gray-500">${dayLabel}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      checkinContainer.innerHTML = `<h3 class="text-sm font-semibold text-gray-700 mb-3">Check-in Trends (Last 7 Days)</h3><p class="text-gray-400 text-sm text-center py-8">No check-in data</p>`;
+    }
+
+    // Popular products
+    const productsContainer = document.getElementById('analytics-popular-products');
+    if (products.length > 0) {
+      productsContainer.innerHTML = `
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Popular Products (Last 30 Days)</h3>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-xs text-gray-400 uppercase border-b border-gray-100">
+              <th class="pb-2">Product</th>
+              <th class="pb-2 text-right">Qty</th>
+              <th class="pb-2 text-right">Revenue</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${products.map((p, i) => `
+              <tr class="border-b border-gray-50">
+                <td class="py-2"><span class="text-gray-400 text-xs mr-2">${i + 1}.</span>${p.name}</td>
+                <td class="py-2 text-right text-gray-600">${p.quantity}</td>
+                <td class="py-2 text-right font-medium">£${parseFloat(p.revenue).toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+    } else {
+      productsContainer.innerHTML = `<h3 class="text-sm font-semibold text-gray-700 mb-3">Popular Products</h3><p class="text-gray-400 text-sm text-center py-8">No product data</p>`;
+    }
+
+    // Grade distribution
+    const gradeContainer = document.getElementById('analytics-grade-dist');
+    const grades = ['VB', 'V0', 'V1', 'V2', 'V3', 'V4', 'V5', 'V6', 'V7', 'V8', 'V9'];
+    const gradeMap = {};
+    gradeDist.forEach(g => gradeMap[g.grade] = g.count);
+    const totalClimbs = gradeDist.reduce((s, g) => s + g.count, 0);
+
+    if (totalClimbs > 0) {
+      const maxG = Math.max(...grades.map(g => gradeMap[g] || 0), 1);
+      gradeContainer.innerHTML = `
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Grade Distribution (${totalClimbs} Active Climbs)</h3>
+        <div class="space-y-2">
+          ${grades.filter(g => gradeMap[g]).map(g => {
+            const count = gradeMap[g];
+            const pct = (count / maxG) * 100;
+            return `
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-medium text-gray-600 w-6">${g}</span>
+                <div class="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
+                  <div class="h-full rounded-full" style="width:${pct}%;background:${GRADE_COLOURS[g]}"></div>
+                </div>
+                <span class="text-xs text-gray-500 w-6 text-right">${count}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    } else {
+      gradeContainer.innerHTML = `<h3 class="text-sm font-semibold text-gray-700 mb-3">Grade Distribution</h3><p class="text-gray-400 text-sm text-center py-8">No active climbs</p>`;
+    }
+
+  } catch (err) {
+    console.error('Analytics load error:', err);
+    document.getElementById('analytics-summary-cards').innerHTML = `<p class="text-red-400 col-span-4">Error loading analytics: ${err.message}</p>`;
+  }
 }
 
 // ============================================================
