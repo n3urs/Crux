@@ -18,10 +18,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '10mb' })); // large limit for signature images
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static frontend files
-app.use(express.static(path.join(__dirname, 'src', 'public')));
-
-// API Routes
+// API Routes (registered before static so they take priority)
 app.use('/api/members', require('./src/routes/members'));
 app.use('/api/checkin', require('./src/routes/checkin'));
 app.use('/api/products', require('./src/routes/products'));
@@ -35,6 +32,9 @@ app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/staff', require('./src/routes/staff'));
 app.use('/api/settings', require('./src/routes/settings'));
 app.use('/api/stats', require('./src/routes/stats'));
+
+// Serve static frontend files
+app.use(express.static(path.join(__dirname, 'src', 'public')));
 
 // SPA fallback — serve index.html for any non-API route
 app.get('*', (req, res) => {
