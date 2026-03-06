@@ -1,0 +1,20 @@
+{
+  "name": "boulderryn",
+  "version": "0.2.0",
+  "description": "BoulderRyn Climbing Gym Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "init-db": "node src/main/database/init.js"
+  },
+  "author": "BoulderRyn",
+  "license": "PRIVATE",
+  "dependencies": {
+    "better-sqlite3": "^11.10.0",
+    "express": "^4.21.0",
+    "nodemailer": "^6.10.1",
+    "qrcode": "^1.5.4",
+    "uuid": "^9.0.1"
+  }
+}
