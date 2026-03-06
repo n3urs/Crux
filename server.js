@@ -32,6 +32,12 @@ app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/staff', require('./src/routes/staff'));
 app.use('/api/settings', require('./src/routes/settings'));
 app.use('/api/stats', require('./src/routes/stats'));
+app.use('/api', require('./src/routes/register'));
+
+// Public registration page (no auth required)
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, 'src', 'public', 'register.html'));
+});
 
 // Serve static frontend files
 app.use(express.static(path.join(__dirname, 'src', 'public')));

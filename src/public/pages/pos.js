@@ -397,16 +397,20 @@ async function posPayMethod(method) {
         return;
       }
       // Process with gift card
+      const savedCart = [...posCart];
+      const savedMember = posSelectedMember;
       const txn = await api('POST', '/api/transactions', {
         member_id: posSelectedMember ? posSelectedMember.id : null,
+        staff_id: window.currentStaff ? window.currentStaff.id : null,
         payment_method: 'gift_card',
         payment_status: 'completed',
         payment_reference: code,
         items: posCart,
       });
       await api('POST', '/api/giftcards/redeem', { code, amount: total, transactionId: txn.id });
-      showToast(`Paid £${total.toFixed(2)} with voucher`, 'success');
-      posNewTx();
+      posShowReceipt(txn, savedCart, savedMember, 'voucher');
+      posCart = [];
+      posSelectedMember = null;
       return;
     } catch (err) {
       showToast('Voucher error: ' + err.message, 'error');
@@ -417,23 +421,26 @@ async function posPayMethod(method) {
   // Dojo (card) or Other
   try {
     const paymentMethod = method === 'dojo_card' ? 'dojo_card' : method;
+    const savedCart = [...posCart];
+    const savedMember = posSelectedMember;
     const txn = await api('POST', '/api/transactions', {
       member_id: posSelectedMember ? posSelectedMember.id : null,
+      staff_id: window.currentStaff ? window.currentStaff.id : null,
       payment_method: paymentMethod,
       payment_status: 'completed',
       items: posCart,
       notes: null,
     });
 
-    showToast(`Payment complete — £${total.toFixed(2)}`, 'success');
-
-    if (posSelectedMember && posSelectedMember.email) {
+    if (savedMember && savedMember.email) {
       api('POST', `/api/transactions/${txn.id}/send-receipt`).then(r => {
         if (r && r.success) showToast('Receipt emailed', 'info');
       }).catch(() => {});
     }
 
-    posNewTx();
+    posShowReceipt(txn, savedCart, savedMember, paymentMethod);
+    posCart = [];
+    posSelectedMember = null;
     await posLoadProducts(); // Refresh stock
   } catch (err) {
     showToast('Payment failed: ' + err.message, 'error');
@@ -441,23 +448,57 @@ async function posPayMethod(method) {
 }
 
 function posCancelTx() {
-  if (posCart.length === 0 && !posSelectedMember) return;
-  if (confirm('Cancel this transaction?')) {
-    posNewTx();
-  }
+  posCart = [];
+  posClearMember();
+  posRenderCart();
+  showToast('Transaction cancelled', 'info');
+}
+
+function posShowReceipt(txn, items, member, paymentMethod) {
+  const cartEl = document.getElementById('pos-cart-items');
+  const now = new Date();
+  const methodLabels = { dojo_card: 'Card (Dojo)', voucher: 'Voucher / Gift Card', gift_card: 'Voucher / Gift Card', other: 'Other' };
+  const methodLabel = methodLabels[paymentMethod] || paymentMethod;
+
+  cartEl.innerHTML = `
+    <div class="text-center py-3">
+      <div class="w-12 h-12 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-2">
+        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <p class="text-white font-bold text-sm">Payment Complete</p>
+      <p class="text-slate-400 text-xs mt-1">${now.toLocaleDateString('en-GB')} ${now.toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'})}</p>
+      ${member ? `<p class="text-slate-300 text-xs mt-1">${member.first_name} ${member.last_name}</p>` : ''}
+    </div>
+    <div class="border-t border-slate-700 py-2">
+      ${items.map(item => `
+        <div class="flex justify-between py-1 text-sm">
+          <span class="text-slate-300">${item.quantity}x ${item.description}</span>
+          <span class="text-white font-medium">£${item.total_price.toFixed(2)}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="border-t border-slate-600 py-2">
+      <div class="flex justify-between text-sm font-bold">
+        <span class="text-white">TOTAL</span>
+        <span class="text-green-400">£${txn.total_amount.toFixed(2)}</span>
+      </div>
+      <p class="text-slate-400 text-xs mt-1">Paid via ${methodLabel}</p>
+      <p class="text-slate-500 text-xs">Ref: ${txn.id.split('-')[0]}</p>
+    </div>
+    <button onclick="posNewTx(); posRenderCart();" class="w-full mt-3 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition">
+      New Transaction
+    </button>
+  `;
+
+  // Update totals display
+  document.getElementById('pos-subtotal').textContent = `£${txn.total_amount.toFixed(2)}`;
+  document.getElementById('pos-cart-total').textContent = `£${txn.total_amount.toFixed(2)}`;
 }
 
 function posNewTx() {
   posCart = [];
   posSelectedMember = null;
-  const displayEl = document.getElementById('pos-member-display');
-  if (displayEl) {
-    displayEl.innerHTML = `
-      <div class="bg-red-600/90 rounded-lg px-3 py-2 text-center animate-pulse">
-        <p class="text-sm font-bold">WARNING!!! No Profile Linked</p>
-      </div>
-    `;
-  }
+  posClearMember();
   posRenderCart();
 }
 

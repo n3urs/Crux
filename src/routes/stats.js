@@ -20,6 +20,11 @@ router.get('/dashboard', (req, res, next) => {
       WHERE date(created_at) = date('now') AND payment_status = 'completed'
     `).get().total;
 
+    const todayTransactions = db.prepare(`
+      SELECT count(*) as c FROM transactions
+      WHERE date(created_at) = date('now') AND payment_status = 'completed'
+    `).get().c;
+
     const weekRevenue = db.prepare(`
       SELECT COALESCE(sum(total_amount), 0) as total FROM transactions
       WHERE created_at >= datetime('now', '-7 days') AND payment_status = 'completed'
@@ -35,9 +40,73 @@ router.get('/dashboard', (req, res, next) => {
       activeMembers,
       todayCheckIns,
       todayRevenue,
+      todayTransactions,
       weekRevenue,
       monthRevenue,
     });
+  } catch (e) { next(e); }
+});
+
+// Daily revenue for last N days
+router.get('/revenue-daily', (req, res, next) => {
+  try {
+    const db = getDb();
+    const days = parseInt(req.query.days) || 7;
+    const rows = db.prepare(`
+      WITH RECURSIVE dates(d) AS (
+        SELECT date('now', '-' || ? || ' days')
+        UNION ALL
+        SELECT date(d, '+1 day') FROM dates WHERE d < date('now')
+      )
+      SELECT dates.d as date,
+        COALESCE(sum(t.total_amount), 0) as revenue,
+        count(t.id) as transactions
+      FROM dates
+      LEFT JOIN transactions t ON date(t.created_at) = dates.d AND t.payment_status = 'completed'
+      GROUP BY dates.d
+      ORDER BY dates.d
+    `).all(days);
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Top products by quantity sold
+router.get('/popular-products', (req, res, next) => {
+  try {
+    const db = getDb();
+    const limit = parseInt(req.query.limit) || 10;
+    const days = parseInt(req.query.days) || 30;
+    const rows = db.prepare(`
+      SELECT ti.description as name, sum(ti.quantity) as quantity, sum(ti.total_price) as revenue
+      FROM transaction_items ti
+      JOIN transactions t ON ti.transaction_id = t.id
+      WHERE t.payment_status = 'completed' AND t.created_at >= datetime('now', '-' || ? || ' days')
+      GROUP BY ti.description
+      ORDER BY quantity DESC
+      LIMIT ?
+    `).all(days, limit);
+    res.json(rows);
+  } catch (e) { next(e); }
+});
+
+// Daily check-in counts for last N days
+router.get('/checkins-daily', (req, res, next) => {
+  try {
+    const db = getDb();
+    const days = parseInt(req.query.days) || 7;
+    const rows = db.prepare(`
+      WITH RECURSIVE dates(d) AS (
+        SELECT date('now', '-' || ? || ' days')
+        UNION ALL
+        SELECT date(d, '+1 day') FROM dates WHERE d < date('now')
+      )
+      SELECT dates.d as date, count(ci.id) as count
+      FROM dates
+      LEFT JOIN check_ins ci ON date(ci.checked_in_at) = dates.d
+      GROUP BY dates.d
+      ORDER BY dates.d
+    `).all(days);
+    res.json(rows);
   } catch (e) { next(e); }
 });
 

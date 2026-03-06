@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BoulderRyn — Register</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .step { display: none; }
+    .step.active { display: block; }
+    .sig-canvas { border: 2px dashed #cbd5e1; border-radius: 0.75rem; touch-action: none; cursor: crosshair; background: #fff; }
+    .sig-canvas.has-sig { border-style: solid; border-color: #1e3a5f; }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .progress-dot { transition: all 0.3s ease; }
+    .progress-dot.completed { background: #1e3a5f; color: #fff; }
+    .progress-dot.current { background: #3b82f6; color: #fff; transform: scale(1.1); }
+    .progress-dot.pending { background: #e2e8f0; color: #94a3b8; }
+    .checkbox-card { transition: all 0.15s ease; }
+    .checkbox-card:has(input:checked) { background: #eff6ff; border-color: #3b82f6; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <!-- Header -->
+  <header class="bg-[#1e3a5f] text-white py-4 px-4 shadow-lg">
+    <div class="max-w-2xl mx-auto flex items-center gap-3">
+      <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center font-bold text-lg">BR</div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight">BoulderRyn</h1>
+        <p class="text-blue-200 text-xs">New Climber Registration</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- Progress Bar -->
+  <div class="bg-white border-b border-gray-200 py-3 px-4 sticky top-0 z-10">
+    <div class="max-w-2xl mx-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-1 sm:gap-2 flex-1">
+          <div class="progress-dot current w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold" data-step="1">1</div>
+          <div class="flex-1 h-1 bg-gray-200 rounded"><div class="progress-bar h-full bg-blue-500 rounded transition-all" style="width:0%"></div></div>
+          <div class="progress-dot pending w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold" data-step="2">2</div>
+          <div class="flex-1 h-1 bg-gray-200 rounded"><div class="progress-bar h-full bg-blue-500 rounded transition-all" style="width:0%"></div></div>
+          <div class="progress-dot pending w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold" data-step="3">3</div>
+          <div class="flex-1 h-1 bg-gray-200 rounded"><div class="progress-bar h-full bg-blue-500 rounded transition-all" style="width:0%"></div></div>
+          <div class="progress-dot pending w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs font-bold" data-step="4">4</div>
+        </div>
+      </div>
+      <div class="flex justify-between mt-1 text-[10px] sm:text-xs text-gray-400">
+        <span>Video</span><span>Details</span><span>Waiver</span><span>Sign</span>
+      </div>
+    </div>
+  </div>
+
+  <main class="max-w-2xl mx-auto px-4 py-6 pb-24">
+    <!-- STEP 1: Video -->
+    <div class="step active" id="step-1">
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Induction Video</h2>
+      <p class="text-gray-500 text-sm mb-4">Please watch the full induction video before continuing. This covers important safety information.</p>
+
+      <div class="bg-black rounded-xl overflow-hidden mb-4 aspect-video">
+        <iframe id="induction-video" src="https://www.youtube.com/embed/-r2zbi21aks" 
+                class="w-full h-full" frameborder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                allowfullscreen></iframe>
+      </div>
+
+      <label class="checkbox-card flex items-start gap-3 p-4 bg-white rounded-xl border border-gray-200 cursor-pointer mb-4">
+        <input type="checkbox" id="video-watched" class="mt-0.5 w-5 h-5 rounded border-gray-300 text-blue-600 flex-shrink-0">
+        <span class="text-sm text-gray-700 font-medium">I have watched the full induction video and understand the safety information presented</span>
+      </label>
+
+      <button onclick="goToStep(2)" id="btn-step1-next" disabled
+              class="w-full py-3.5 bg-blue-600 text-white font-semibold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-blue-700 transition text-sm">
+        Continue
+      </button>
+    </div>
+
+    <!-- STEP 2: Personal Details -->
+    <div class="step" id="step-2">
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Personal Details</h2>
+      <p class="text-gray-500 text-sm mb-4">Fields marked with * are required.</p>
+
+      <div class="space-y-4">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+            <input type="text" id="reg-first-name" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+            <input type="text" id="reg-last-name" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input type="email" id="reg-email" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="your@email.com">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+            <input type="tel" id="reg-phone" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="07xxx">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth *</label>
+            <input type="date" id="reg-dob" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+          <select id="reg-gender" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white">
+            <option value="">Prefer not to say</option>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm font-medium text-gray-700 mb-3">Address</p>
+          <div class="space-y-2">
+            <input type="text" id="reg-addr1" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="Address line 1">
+            <input type="text" id="reg-addr2" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="Address line 2">
+            <div class="grid grid-cols-3 gap-2">
+              <input type="text" id="reg-city" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="City">
+              <input type="text" id="reg-region" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="County">
+              <input type="text" id="reg-postcode" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="Postcode">
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm font-medium text-gray-700 mb-3">Emergency Contact</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Contact Name *</label>
+              <input type="text" id="reg-ec-name" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Contact Phone *</label>
+              <input type="tel" id="reg-ec-phone" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+            </div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4">
+          <p class="text-sm font-medium text-gray-700 mb-3">Climbing Information</p>
+
+          <div class="mb-3">
+            <label class="block text-xs text-gray-500 mb-1">Medical Conditions</label>
+            <input type="text" id="reg-medical" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="None">
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Climbing Experience *</label>
+            <div class="space-y-2">
+              <label class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                <input type="radio" name="climbing-exp" value="New Climber" required class="w-4 h-4 text-blue-600">
+                <span class="text-sm">New Climber</span>
+              </label>
+              <label class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                <input type="radio" name="climbing-exp" value="Climbed a few times" class="w-4 h-4 text-blue-600">
+                <span class="text-sm">Climbed a few times</span>
+              </label>
+              <label class="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition">
+                <input type="radio" name="climbing-exp" value="Regular Climber" class="w-4 h-4 text-blue-600">
+                <span class="text-sm">Regular Climber</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Are you a member of any other walls? Which? *</label>
+            <input type="text" id="reg-other-walls" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="No / Yes — name of wall">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">How many times have you climbed in the past 12 months? *</label>
+            <input type="text" id="reg-climbs-12m" required class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm" placeholder="e.g. 0, 5, 20+">
+          </div>
+        </div>
+      </div>
+
+      <div id="step2-error" class="text-red-500 text-sm mt-3 hidden"></div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="goToStep(1)" class="px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition text-sm">Back</button>
+        <button onclick="validateStep2()" class="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition text-sm">Continue</button>
+      </div>
+    </div>
+
+    <!-- STEP 3: Waiver Agreement -->
+    <div class="step" id="step-3">
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Participation Agreement</h2>
+      <p class="text-gray-500 text-sm mb-4">Please read carefully and confirm each statement.</p>
+
+      <!-- Participation Statement -->
+      <div class="bg-white border border-gray-200 rounded-xl p-4 mb-4 max-h-48 overflow-y-auto text-sm text-gray-700 leading-relaxed">
+        <p class="font-bold text-gray-900 mb-2">Participation Statement</p>
+        <p class="mb-3">All climbing and bouldering activities have a risk of serious injury or death. Participants must be aware of and accept that even if they follow all good practice there may still be the risk of accident and injury. It is the responsibility of the participant to adhere to the conditions of use.</p>
+        <p class="font-bold text-gray-900 mb-2">Conditions of Use</p>
+        <p class="mb-2">By signing this document, you acknowledge that you have read, understood, and agree to abide by the rules and conditions set out by BoulderRyn when using the facilities. These include but are not limited to:</p>
+        <ul class="list-disc pl-5 space-y-1 text-gray-600">
+          <li>General Safety — Follow all posted rules and staff instructions at all times.</li>
+          <li>Bouldering — Climb only to the maximum permitted height. Check landing zones are clear before climbing.</li>
+          <li>Climbers Aged 8-17 — Must be supervised by a responsible adult at all times.</li>
+          <li>Warm Up and Training Area — Use equipment safely and within your ability.</li>
+          <li>Photography — Ask permission before photographing other climbers.</li>
+          <li>Matting Warning — The matting is designed to reduce impact but does NOT eliminate the risk of injury from falls.</li>
+          <li>Duty of Care — You have a duty of care to yourself and others using the facility.</li>
+        </ul>
+      </div>
+
+      <!-- Confirmation Questions -->
+      <div class="space-y-2 mb-4">
+        <p class="text-sm font-bold text-gray-900">Please confirm the following:</p>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Do you understand that failure to exercise due care could result in injury or death?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Have you watched the BoulderRyn Induction Video?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Have you fully read and understood this Participation Agreement?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Do you agree to abide by the rules and conditions?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Do you understand that the matting does not remove the risk of injury?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Having watched the video, do you feel you know how to climb safely?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer" id="over18-label">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" id="over18-check">
+          <span class="text-sm text-gray-700">Are you over 18 years of age?</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-700">Do you understand failure to follow rules could result in being asked to leave?</span>
+        </label>
+      </div>
+
+      <!-- Minor Section (hidden by default) -->
+      <div id="minor-section" class="hidden mb-4">
+        <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
+          <p class="text-amber-800 font-bold text-sm mb-1">Under 18 Registration</p>
+          <p class="text-amber-700 text-xs">As you are under 18, a parent or guardian must complete the remaining sections.</p>
+        </div>
+
+        <div class="space-y-3 mb-4">
+          <p class="text-sm font-bold text-gray-900">Child / Dependent Details</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Child's First Name *</label>
+              <input type="text" id="dep-first-name" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Child's Last Name *</label>
+              <input type="text" id="dep-last-name" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Child's Date of Birth</label>
+              <input type="date" id="dep-dob" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Child's Gender</label>
+              <select id="dep-gender" class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm bg-white">
+                <option value="">—</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+                <option value="Prefer not to say">Prefer not to say</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer mb-3">
+          <input type="checkbox" id="photo-id-consent" class="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0">
+          <span class="text-xs text-gray-700">I confirm that I am the parent/legal guardian of the above-named child and I consent to BoulderRyn Ltd taking and storing a photograph of my child for identification purposes at the reception desk only. This photograph will be used solely to verify identity, stored securely, and not used for marketing.</span>
+        </label>
+      </div>
+
+      <!-- Final Checkboxes -->
+      <div class="space-y-2 mb-4 border-t border-gray-200 pt-4">
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-xs text-gray-700">I certify that to the best of my knowledge, I do not suffer from a medical condition that might make it more likely that I will be involved in an accident, OR I have discussed it with a duty manager and a risk assessment is in place.</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-xs text-gray-700">I confirm that the above information is correct and if any information changes I will notify the centre.</span>
+        </label>
+
+        <label class="checkbox-card flex items-start gap-3 p-4 bg-white rounded-xl border-2 border-gray-300 cursor-pointer">
+          <input type="checkbox" class="waiver-check mt-0.5 w-5 h-5 rounded border-gray-300 text-blue-600 flex-shrink-0" required>
+          <span class="text-sm text-gray-900 font-bold">I HAVE HAD SUFFICIENT OPPORTUNITY TO READ THIS ENTIRE DOCUMENT AND WATCH THE INDUCTION VIDEO. I HAVE UNDERSTOOD THE FORM AND VIDEO AND ACKNOWLEDGE I AM BOUND BY ITS TERMS.</span>
+        </label>
+      </div>
+
+      <div id="step3-error" class="text-red-500 text-sm mt-3 hidden"></div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="goToStep(2)" class="px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition text-sm">Back</button>
+        <button onclick="validateStep3()" class="flex-1 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition text-sm">Continue to Sign</button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Signature + Submit -->
+    <div class="step" id="step-4">
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Sign & Submit</h2>
+      <p class="text-gray-500 text-sm mb-4">Please sign below to complete your registration.</p>
+
+      <!-- Main Signature -->
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2" id="sig-label">Your Signature</label>
+        <canvas id="sig-canvas" class="sig-canvas w-full" height="200"></canvas>
+        <div class="flex justify-end mt-2">
+          <button onclick="clearSignature('sig-canvas')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Clear</button>
+        </div>
+      </div>
+
+      <!-- Parent Signature (minor only) -->
+      <div id="parent-sig-section" class="hidden mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-2">Child's Signature</label>
+        <canvas id="parent-sig-canvas" class="sig-canvas w-full" height="200"></canvas>
+        <div class="flex justify-end mt-2">
+          <button onclick="clearSignature('parent-sig-canvas')" class="text-sm text-blue-600 hover:text-blue-800 font-medium">Clear</button>
+        </div>
+      </div>
+
+      <div id="step4-error" class="text-red-500 text-sm mt-3 hidden"></div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="goToStep(3)" class="px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-xl hover:bg-gray-200 transition text-sm">Back</button>
+        <button onclick="submitRegistration()" id="btn-submit" class="flex-1 py-3.5 bg-[#1e3a5f] text-white font-bold rounded-xl hover:bg-[#2a4f7f] transition text-sm">
+          Submit Registration
+        </button>
+      </div>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="step" id="step-success">
+      <div class="text-center py-8">
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2" id="success-title">Welcome to BoulderRyn!</h2>
+        <p class="text-gray-500 mb-6">Please go to the front desk to complete your registration.</p>
+        <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 inline-block">
+          <p class="text-blue-800 text-sm font-medium">Registration fee: £3.00 (payable at desk)</p>
+        </div>
+        <p class="text-gray-400 text-xs mt-4">A QR code has been sent to your email for future check-ins.</p>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // =============================================
+    // State
+    // =============================================
+    let currentStep = 1;
+    let isMinor = false;
+    const signatures = {};
+
+    // =============================================
+    // Step Navigation
+    // =============================================
+    function goToStep(step) {
+      document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+      document.getElementById(`step-${step}`).classList.add('active');
+      currentStep = step;
+      updateProgress();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Init signature canvas when entering step 4
+      if (step === 4) {
+        setTimeout(() => {
+          initSignatureCanvas('sig-canvas');
+          if (isMinor) {
+            document.getElementById('parent-sig-section').classList.remove('hidden');
+            document.getElementById('sig-label').textContent = 'Parent/Guardian Signature';
+            initSignatureCanvas('parent-sig-canvas');
+          }
+        }, 100);
+      }
+    }
+
+    function updateProgress() {
+      document.querySelectorAll('.progress-dot').forEach(dot => {
+        const step = parseInt(dot.dataset.step);
+        dot.classList.remove('completed', 'current', 'pending');
+        if (step < currentStep) dot.classList.add('completed');
+        else if (step === currentStep) dot.classList.add('current');
+        else dot.classList.add('pending');
+      });
+
+      document.querySelectorAll('.progress-bar').forEach((bar, i) => {
+        const stepAfter = i + 2;
+        bar.style.width = currentStep >= stepAfter ? '100%' : '0%';
+      });
+    }
+
+    // =============================================
+    // Step 1: Video
+    // =============================================
+    document.getElementById('video-watched').addEventListener('change', function() {
+      document.getElementById('btn-step1-next').disabled = !this.checked;
+    });
+
+    // =============================================
+    // Step 2: Validation
+    // =============================================
+    function validateStep2() {
+      const fields = {
+        'First Name': document.getElementById('reg-first-name').value.trim(),
+        'Last Name': document.getElementById('reg-last-name').value.trim(),
+        'Email': document.getElementById('reg-email').value.trim(),
+        'Phone': document.getElementById('reg-phone').value.trim(),
+        'Date of Birth': document.getElementById('reg-dob').value,
+        'Emergency Contact Name': document.getElementById('reg-ec-name').value.trim(),
+        'Emergency Contact Phone': document.getElementById('reg-ec-phone').value.trim(),
+      };
+
+      const errEl = document.getElementById('step2-error');
+
+      for (const [name, val] of Object.entries(fields)) {
+        if (!val) {
+          errEl.textContent = `${name} is required`;
+          errEl.classList.remove('hidden');
+          return;
+        }
+      }
+
+      // Validate email format
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields['Email'])) {
+        errEl.textContent = 'Please enter a valid email address';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      // Check climbing experience
+      const exp = document.querySelector('input[name="climbing-exp"]:checked');
+      if (!exp) {
+        errEl.textContent = 'Please select your climbing experience level';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      if (!document.getElementById('reg-other-walls').value.trim()) {
+        errEl.textContent = 'Please answer whether you are a member of other walls';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      if (!document.getElementById('reg-climbs-12m').value.trim()) {
+        errEl.textContent = 'Please indicate how many times you have climbed in the past 12 months';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      goToStep(3);
+    }
+
+    // =============================================
+    // Step 3: Waiver + Minor detection
+    // =============================================
+    document.getElementById('over18-check').addEventListener('change', function() {
+      isMinor = !this.checked;
+      document.getElementById('minor-section').classList.toggle('hidden', !isMinor);
+    });
+
+    function validateStep3() {
+      const errEl = document.getElementById('step3-error');
+      const checks = document.querySelectorAll('.waiver-check');
+      let allChecked = true;
+
+      checks.forEach(cb => {
+        if (!cb.checked && cb.id !== 'over18-check') {
+          allChecked = false;
+        }
+      });
+
+      if (!allChecked) {
+        errEl.textContent = 'Please confirm all statements above';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      // If minor, validate dependent fields
+      if (isMinor) {
+        if (!document.getElementById('dep-first-name').value.trim() || !document.getElementById('dep-last-name').value.trim()) {
+          errEl.textContent = 'Please enter the child\'s name';
+          errEl.classList.remove('hidden');
+          return;
+        }
+      }
+
+      errEl.classList.add('hidden');
+      goToStep(4);
+    }
+
+    // =============================================
+    // Signature Canvas
+    // =============================================
+    function initSignatureCanvas(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || canvas._sigInit) return;
+      canvas._sigInit = true;
+
+      const ctx = canvas.getContext('2d');
+      let drawing = false;
+      let lastX, lastY;
+
+      // Set canvas size to actual display size
+      function resizeCanvas() {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        ctx.scale(dpr, dpr);
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.strokeStyle = '#1e3a5f';
+      }
+      resizeCanvas();
+
+      function getPos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const touch = e.touches ? e.touches[0] : e;
+        return {
+          x: touch.clientX - rect.left,
+          y: touch.clientY - rect.top
+        };
+      }
+
+      function startDraw(e) {
+        e.preventDefault();
+        drawing = true;
+        const pos = getPos(e);
+        lastX = pos.x;
+        lastY = pos.y;
+        ctx.beginPath();
+        ctx.moveTo(pos.x, pos.y);
+      }
+
+      function draw(e) {
+        if (!drawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+        canvas.classList.add('has-sig');
+        signatures[canvasId] = true;
+      }
+
+      function endDraw(e) {
+        if (e) e.preventDefault();
+        drawing = false;
+      }
+
+      // Mouse events
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', endDraw);
+      canvas.addEventListener('mouseleave', endDraw);
+
+      // Touch events
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', endDraw, { passive: false });
+      canvas.addEventListener('touchcancel', endDraw, { passive: false });
+    }
+
+    function clearSignature(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.classList.remove('has-sig');
+      signatures[canvasId] = false;
+    }
+
+    function getSignatureData(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      if (!signatures[canvasId]) return null;
+      return canvas.toDataURL('image/png');
+    }
+
+    // =============================================
+    // Submit
+    // =============================================
+    async function submitRegistration() {
+      const errEl = document.getElementById('step4-error');
+      const btn = document.getElementById('btn-submit');
+
+      // Validate signature
+      if (!signatures['sig-canvas']) {
+        errEl.textContent = 'Please provide your signature';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      if (isMinor && !signatures['parent-sig-canvas']) {
+        errEl.textContent = 'Please provide the child\'s signature';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
+      errEl.classList.add('hidden');
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const exp = document.querySelector('input[name="climbing-exp"]:checked');
+
+      const body = {
+        first_name: document.getElementById('reg-first-name').value.trim(),
+        last_name: document.getElementById('reg-last-name').value.trim(),
+        email: document.getElementById('reg-email').value.trim(),
+        phone: document.getElementById('reg-phone').value.trim(),
+        date_of_birth: document.getElementById('reg-dob').value,
+        gender: document.getElementById('reg-gender').value || null,
+        address_line1: document.getElementById('reg-addr1').value.trim() || null,
+        address_line2: document.getElementById('reg-addr2').value.trim() || null,
+        city: document.getElementById('reg-city').value.trim() || null,
+        region: document.getElementById('reg-region').value.trim() || null,
+        postal_code: document.getElementById('reg-postcode').value.trim() || null,
+        emergency_contact_name: document.getElementById('reg-ec-name').value.trim(),
+        emergency_contact_phone: document.getElementById('reg-ec-phone').value.trim(),
+        medical_conditions: document.getElementById('reg-medical').value.trim() || 'None',
+        climbing_experience: exp ? exp.value : null,
+        member_of_other_walls: document.getElementById('reg-other-walls').value.trim(),
+        climbs_past_12_months: document.getElementById('reg-climbs-12m').value.trim(),
+        signature: getSignatureData('sig-canvas'),
+        is_minor: isMinor,
+        form_data: {
+          video_watched: true,
+          all_confirmations_checked: true,
+          signed_at: new Date().toISOString(),
+        },
+      };
+
+      if (isMinor) {
+        body.parent_signature = getSignatureData('parent-sig-canvas');
+        body.photo_id_consent = document.getElementById('photo-id-consent').checked;
+        body.dependents = [{
+          first_name: document.getElementById('dep-first-name').value.trim(),
+          last_name: document.getElementById('dep-last-name').value.trim(),
+          date_of_birth: document.getElementById('dep-dob').value || null,
+          gender: document.getElementById('dep-gender').value || null,
+        }];
+      }
+
+      try {
+        const res = await fetch('/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Registration failed');
+        }
+
+        // Show success
+        document.getElementById('success-title').textContent =
+          `Welcome to BoulderRyn, ${data.member.first_name}!`;
+
+        document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+        document.getElementById('step-success').classList.add('active');
+
+        // Update progress to complete
+        document.querySelectorAll('.progress-dot').forEach(dot => dot.classList.add('completed'));
+        document.querySelectorAll('.progress-bar').forEach(bar => bar.style.width = '100%');
+
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.remove('hidden');
+        btn.disabled = false;
+        btn.textContent = 'Submit Registration';
+      }
+    }
+  </script>
+</body>
+</html>
