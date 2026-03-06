@@ -23,10 +23,10 @@ Converted from Electron desktop app to a standard web application:
 - `package.json` — removed electron, added express, updated scripts
 - `src/main/database/db.js` — removed Electron app.getPath dependency
 
-### Files superseded (kept for reference):
-- `src/main/main.js` — original Electron main process
-- `src/main/preload.js` — original IPC bridge
-- `src/renderer/` — original frontend (copied to src/public/ with modifications)
+### Dead Electron code removed (6 March 2026):
+- `src/main/main.js` — deleted (old Electron main process)
+- `src/main/preload.js` — deleted (old IPC bridge)
+- `src/renderer/` — deleted (old frontend, superseded by src/public/)
 
 ---
 
