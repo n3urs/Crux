@@ -418,7 +418,7 @@ CREATE TABLE IF NOT EXISTS staff (
   last_name TEXT NOT NULL,
   email TEXT UNIQUE,
   phone TEXT,
-  role TEXT DEFAULT 'desk',              -- desk/manager/setter/admin/owner
+  role TEXT DEFAULT 'centre_assistant',   -- centre_assistant/duty_manager/setter/tech_lead/owner
   pin_hash TEXT,                         -- hashed PIN for quick login
   password_hash TEXT,                    -- hashed password for full login
   permissions_json TEXT,                 -- JSON object of granular permissions
