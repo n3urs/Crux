@@ -1809,7 +1809,7 @@ const WALL_PATHS = {
   },
   wall_mystery: {
     // Open line across bottom — shallow arch. Climbs sit on the line.
-    path: 'M 120,490 L 170,530 L 380,505 L 560,520 L 650,560',
+    path: 'M 120,490 L 170,530 L 380,505 L 560,520 L 620,515 L 620,570',
     fill: '#EF4444', label: 'Magical Mystery', labelX: 390, labelY: 555, closed: false,
     climbOffset: 0
   }
