@@ -2161,38 +2161,263 @@ function editMemberModal(memberId) {
   }, 'Manager PIN', 'Editing profiles requires manager access');
 }
 
-async function _doEditMemberModal(memberId) {
+async function _doEditMemberModal(memberId, activeTab = 'edit') {
   const m = await api('GET', `/api/members/${memberId}`);
   if (!m) return;
 
   document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto';
 
+  const tabs = [
+    { id: 'edit', label: 'Edit' },
+    { id: 'merge', label: 'Merge Profile' },
+    { id: 'family', label: 'Family Members' },
+  ];
+
+  const tabNav = tabs.map(t => `
+    <button onclick="editModalTab('${memberId}', '${t.id}')" id="edit-tab-${t.id}"
+      class="px-4 py-3 text-sm font-medium border-b-2 transition ${t.id === activeTab ? 'border-[#1E3A5F] text-[#1E3A5F]' : 'border-transparent text-gray-500 hover:text-gray-700'}">
+      ${t.label}
+    </button>`).join('');
+
+  const editFormHtml = `
+    <form id="edit-member-form" onsubmit="updateMember(event, '${m.id}')">
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-group"><label class="form-label">First Name *</label><input type="text" name="first_name" class="form-input" value="${m.first_name || ''}" required></div>
+        <div class="form-group"><label class="form-label">Last Name *</label><input type="text" name="last_name" class="form-input" value="${m.last_name || ''}" required></div>
+        <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-input" value="${m.email || ''}"></div>
+        <div class="form-group"><label class="form-label">Phone</label><input type="tel" name="phone" class="form-input" value="${m.phone || ''}"></div>
+        <div class="form-group"><label class="form-label">Date of Birth</label><input type="date" name="date_of_birth" class="form-input" value="${m.date_of_birth || ''}"></div>
+        <div class="form-group"><label class="form-label">Gender</label><select name="gender" class="form-select"><option value="">—</option><option value="male" ${m.gender==='male'?'selected':''}>Male</option><option value="female" ${m.gender==='female'?'selected':''}>Female</option><option value="other" ${m.gender==='other'?'selected':''}>Other</option><option value="prefer_not_to_say" ${m.gender==='prefer_not_to_say'?'selected':''}>Prefer not to say</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">Address Line 1</label><input type="text" name="address_line1" class="form-input mb-2" placeholder="Address Line 1" value="${m.address_line1 || ''}"></div>
+      <div class="form-group"><label class="form-label">Address Line 2</label><input type="text" name="address_line2" class="form-input mb-2" placeholder="Address Line 2" value="${m.address_line2 || ''}"></div>
+      <div class="grid grid-cols-3 gap-2 mb-4"><input type="text" name="city" class="form-input" placeholder="City" value="${m.city || ''}"><input type="text" name="region" class="form-input" placeholder="County" value="${m.region || ''}"><input type="text" name="postal_code" class="form-input" placeholder="Postcode" value="${m.postal_code || ''}"></div>
+      <div class="grid grid-cols-2 gap-4">
+        <div class="form-group"><label class="form-label">Emergency Contact Name</label><input type="text" name="emergency_contact_name" class="form-input" value="${m.emergency_contact_name || ''}"></div>
+        <div class="form-group"><label class="form-label">Emergency Contact Phone</label><input type="tel" name="emergency_contact_phone" class="form-input" value="${m.emergency_contact_phone || ''}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Medical Conditions</label><input type="text" name="medical_conditions" class="form-input" value="${m.medical_conditions || ''}"></div>
+      <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-input" rows="2">${m.notes || ''}</textarea></div>
+      <div class="flex justify-end gap-2 mt-6">
+        <button type="button" onclick="openMemberProfile('${m.id}')" class="btn btn-secondary">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+      </div>
+    </form>`;
+
+  const fullName = `${m.first_name} ${m.last_name}`;
+  const dob = m.date_of_birth ? formatDate(m.date_of_birth) : '—';
+  const colour = memberColour(m.first_name + m.last_name);
+  const initials = ((m.first_name||'')[0]||'') + ((m.last_name||'')[0]||'');
+
+  const mergeHtml = `
+    <div>
+      <div class="bg-red-50 border border-red-200 rounded-xl p-4 mb-5">
+        <p class="text-sm text-red-700 font-medium leading-relaxed">
+          <strong>DANGER!</strong> Running this function will delete this profile and map all sessions, passes, transactions, and events to the target profile. This cannot be undone.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-3 mb-5 p-3 bg-gray-50 rounded-xl">
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="merge-understand-toggle" class="sr-only peer" onchange="document.getElementById('merge-action-area').classList.toggle('opacity-30', !this.checked); document.getElementById('merge-submit-btn').disabled=!this.checked;">
+          <div class="w-10 h-6 bg-gray-300 rounded-full peer peer-checked:bg-blue-500 transition"></div>
+          <div class="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full shadow peer-checked:translate-x-4 transition-transform"></div>
+        </label>
+        <span class="text-sm font-semibold text-gray-700">I understand</span>
+      </div>
+
+      <div id="merge-action-area" class="opacity-30 transition-opacity">
+        <div class="grid grid-cols-2 gap-6">
+          <!-- Incorrect profile (source) -->
+          <div>
+            <p class="text-xs font-bold text-gray-500 uppercase mb-3">Incorrect Profile</p>
+            <p class="text-xs text-gray-400 mb-3">This profile will be permanently deleted. All passes, events, visits, purchases, and forms will be transferred to the target profile.</p>
+            <div class="flex items-center gap-3 p-3 border-2 border-red-200 bg-red-50 rounded-xl">
+              ${m.photo_url ? `<img src="${m.photo_url}" class="w-12 h-12 rounded-full object-cover">` : `<div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold" style="background:${colour}">${initials}</div>`}
+              <div class="min-w-0">
+                <p class="text-sm font-bold text-gray-900">${fullName.toUpperCase()}</p>
+                <p class="text-xs text-gray-400">${m.email || '—'}</p>
+                <p class="text-xs text-gray-400">${dob}</p>
+              </div>
+              <svg class="w-4 h-4 text-orange-400 flex-shrink-0 ml-auto" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+            </div>
+          </div>
+
+          <!-- Target profile search -->
+          <div>
+            <p class="text-xs font-bold text-gray-500 uppercase mb-3">Target Profile</p>
+            <p class="text-xs text-gray-400 mb-3">This profile will get all passes, events, visits, purchases, and forms from the profile to delete.</p>
+            <div class="relative mb-3">
+              <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+              <input type="text" id="merge-target-search" class="form-input pl-9" placeholder="Search by name or email..." oninput="searchMergeTarget('${m.id}', this.value)">
+            </div>
+            <div id="merge-target-results" class="border border-gray-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+              <p class="text-xs text-gray-400 p-3 text-center">Start typing to search</p>
+            </div>
+            <div id="merge-target-selected" class="hidden mt-2 p-2 bg-blue-50 border border-blue-200 rounded-xl text-xs">
+              <span class="text-blue-700 font-semibold">Selected: </span><span id="merge-target-name" class="text-blue-600"></span>
+            </div>
+            <input type="hidden" id="merge-target-id">
+          </div>
+        </div>
+
+        <div class="flex justify-end mt-6">
+          <button id="merge-submit-btn" disabled onclick="submitMergeProfile('${m.id}')"
+            class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/></svg>
+            Merge & Delete Profile
+          </button>
+        </div>
+      </div>
+    </div>`;
+
+  const familyHtml = `<div id="family-section-content"><p class="text-sm text-gray-400 text-center py-8">Loading family members...</p></div>`;
+
+  const tabContent = { edit: editFormHtml, merge: mergeHtml, family: familyHtml };
+
   showModal(`
     <div class="p-6">
-      <h3 class="text-xl font-bold mb-4">Edit Member</h3>
-      <form id="edit-member-form" onsubmit="updateMember(event, '${m.id}')">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-group"><label class="form-label">First Name *</label><input type="text" name="first_name" class="form-input" value="${m.first_name || ''}" required></div>
-          <div class="form-group"><label class="form-label">Last Name *</label><input type="text" name="last_name" class="form-input" value="${m.last_name || ''}" required></div>
-          <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-input" value="${m.email || ''}"></div>
-          <div class="form-group"><label class="form-label">Phone</label><input type="tel" name="phone" class="form-input" value="${m.phone || ''}"></div>
-          <div class="form-group"><label class="form-label">Date of Birth</label><input type="date" name="date_of_birth" class="form-input" value="${m.date_of_birth || ''}"></div>
-          <div class="form-group"><label class="form-label">Gender</label><select name="gender" class="form-select"><option value="">—</option><option value="male" ${m.gender === 'male' ? 'selected' : ''}>Male</option><option value="female" ${m.gender === 'female' ? 'selected' : ''}>Female</option><option value="other" ${m.gender === 'other' ? 'selected' : ''}>Other</option><option value="prefer_not_to_say" ${m.gender === 'prefer_not_to_say' ? 'selected' : ''}>Prefer not to say</option></select></div>
-        </div>
-        <div class="form-group"><label class="form-label">Address</label><input type="text" name="address_line1" class="form-input mb-2" placeholder="Address Line 1" value="${m.address_line1 || ''}"><input type="text" name="address_line2" class="form-input mb-2" placeholder="Address Line 2" value="${m.address_line2 || ''}"><div class="grid grid-cols-3 gap-2"><input type="text" name="city" class="form-input" placeholder="City" value="${m.city || ''}"><input type="text" name="region" class="form-input" placeholder="County" value="${m.region || ''}"><input type="text" name="postal_code" class="form-input" placeholder="Postcode" value="${m.postal_code || ''}"></div></div>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-group"><label class="form-label">Emergency Contact Name</label><input type="text" name="emergency_contact_name" class="form-input" value="${m.emergency_contact_name || ''}"></div>
-          <div class="form-group"><label class="form-label">Emergency Contact Phone</label><input type="tel" name="emergency_contact_phone" class="form-input" value="${m.emergency_contact_phone || ''}"></div>
-        </div>
-        <div class="form-group"><label class="form-label">Medical Conditions</label><input type="text" name="medical_conditions" class="form-input" value="${m.medical_conditions || ''}"></div>
-        <div class="form-group"><label class="form-label">Notes</label><textarea name="notes" class="form-input" rows="2">${m.notes || ''}</textarea></div>
-        <div class="flex justify-end gap-2 mt-6">
-          <button type="button" onclick="openMemberProfile('${m.id}')" class="btn btn-secondary">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Changes</button>
-        </div>
-      </form>
+      <div class="flex items-center justify-between mb-1">
+        <h3 class="text-lg font-bold text-gray-900">${fullName}</h3>
+        <button onclick="openMemberProfile('${m.id}')" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <div class="flex border-b border-gray-200 mb-5">${tabNav}</div>
+      <div id="edit-modal-tab-content">${tabContent[activeTab]}</div>
     </div>
   `);
+
+  if (activeTab === 'family') loadFamilyTab(memberId);
+}
+
+function editModalTab(memberId, tab) {
+  // Re-render with new active tab
+  _doEditMemberModal(memberId, tab);
+}
+
+let _mergeSearchTimer = null;
+async function searchMergeTarget(excludeId, query) {
+  clearTimeout(_mergeSearchTimer);
+  const resultsEl = document.getElementById('merge-target-results');
+  if (!query || query.length < 2) { resultsEl.innerHTML = '<p class="text-xs text-gray-400 p-3 text-center">Start typing to search</p>'; return; }
+  _mergeSearchTimer = setTimeout(async () => {
+    try {
+      const members = await api('GET', `/api/members/search?q=${encodeURIComponent(query)}&limit=10`);
+      const list = (members.members || members || []).filter(m => m.id !== excludeId);
+      if (!list.length) { resultsEl.innerHTML = '<p class="text-xs text-gray-400 p-3 text-center">No results</p>'; return; }
+      resultsEl.innerHTML = list.map(m => {
+        const fullName = `${m.first_name} ${m.last_name}`;
+        const dob = m.date_of_birth ? formatDate(m.date_of_birth) : '';
+        return `<button type="button" onclick="selectMergeTarget('${m.id}', '${fullName.replace(/'/g, "\\'")}')"
+          class="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 border-b border-gray-50 last:border-0 text-left transition">
+          <div class="w-2 h-2 rounded-full bg-gray-300 flex-shrink-0"></div>
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-gray-800">${fullName}</p>
+            <p class="text-xs text-gray-400">${m.email || '—'} ${dob ? '· ' + dob : ''}</p>
+          </div>
+        </button>`;
+      }).join('');
+    } catch (e) { resultsEl.innerHTML = '<p class="text-xs text-red-400 p-3 text-center">Search error</p>'; }
+  }, 300);
+}
+
+function selectMergeTarget(targetId, targetName) {
+  document.getElementById('merge-target-id').value = targetId;
+  document.getElementById('merge-target-name').textContent = targetName;
+  document.getElementById('merge-target-selected').classList.remove('hidden');
+  // Highlight selected row
+  document.querySelectorAll('#merge-target-results button').forEach(b => {
+    b.classList.toggle('bg-blue-50', b.getAttribute('onclick').includes(targetId));
+  });
+}
+
+async function submitMergeProfile(sourceId) {
+  const targetId = document.getElementById('merge-target-id').value;
+  const targetName = document.getElementById('merge-target-name').textContent;
+  if (!targetId) { showToast('Select a target profile first', 'error'); return; }
+  if (!confirm(`This will permanently delete this profile and move everything to ${targetName}. Are you absolutely sure?`)) return;
+  try {
+    await api('POST', `/api/members/${sourceId}/merge`, { target_id: targetId });
+    showToast('Profiles merged successfully', 'success');
+    closeModal();
+    loadPage('members');
+  } catch (e) { showToast('Merge failed: ' + e.message, 'error'); }
+}
+
+async function loadFamilyTab(memberId) {
+  try {
+    const data = await api('GET', `/api/members/${memberId}/family`);
+    const el = document.getElementById('family-section-content');
+    if (!el) return;
+    const { parents = [], children = [] } = data;
+    const renderRow = (m, rel, canRemove) => {
+      const fullName = `${m.first_name} ${m.last_name}`;
+      const age = m.date_of_birth ? Math.floor((Date.now() - new Date(m.date_of_birth)) / (365.25*24*60*60*1000)) : null;
+      return `<div class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition">
+        <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style="background:${memberColour(fullName)}">${(m.first_name[0]||'')+(m.last_name[0]||'')}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800">${fullName}</p>
+          <p class="text-xs text-gray-400">${rel}${age !== null ? ' · Age ' + age : ''}</p>
+        </div>
+        <button onclick="openMemberProfile('${m.id}')" class="text-xs text-blue-600 hover:underline">View</button>
+        ${canRemove ? `<button onclick="removeFamilyLink('${memberId}', '${m.id}')" class="text-gray-300 hover:text-red-400 ml-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>` : ''}
+      </div>`;
+    };
+    el.innerHTML = `
+      ${parents.length ? `<p class="text-xs font-bold text-gray-400 uppercase mb-2">Parents / Guardians</p><div class="space-y-2 mb-4">${parents.map(p => renderRow(p, p.relationship || 'Parent', true)).join('')}</div>` : ''}
+      ${children.length ? `<p class="text-xs font-bold text-gray-400 uppercase mb-2">Children / Dependants</p><div class="space-y-2 mb-4">${children.map(c => renderRow(c, c.relationship || 'Child', true)).join('')}</div>` : ''}
+      ${!parents.length && !children.length ? `<p class="text-sm text-gray-400 text-center py-4 mb-4">No family links yet</p>` : ''}
+      <div class="border-t border-gray-100 pt-4">
+        <p class="text-xs font-bold text-gray-500 uppercase mb-2">Link Family Member</p>
+        <div class="flex gap-2">
+          <input type="text" id="family-link-search" class="form-input flex-1 text-sm" placeholder="Search by name..." oninput="searchFamilyLink('${memberId}', this.value)">
+        </div>
+        <div id="family-link-results" class="mt-2 border border-gray-200 rounded-xl overflow-hidden max-h-40 overflow-y-auto hidden"></div>
+      </div>`;
+  } catch (e) { document.getElementById('family-section-content').innerHTML = '<p class="text-xs text-red-400 p-4 text-center">Error loading family</p>'; }
+}
+
+let _familySearchTimer = null;
+async function searchFamilyLink(memberId, query) {
+  clearTimeout(_familySearchTimer);
+  const el = document.getElementById('family-link-results');
+  if (!query || query.length < 2) { el.classList.add('hidden'); return; }
+  _familySearchTimer = setTimeout(async () => {
+    el.classList.remove('hidden');
+    try {
+      const members = await api('GET', `/api/members/search?q=${encodeURIComponent(query)}&limit=8`);
+      const list = (members.members || members || []).filter(m => m.id !== memberId);
+      el.innerHTML = list.length ? list.map(m => {
+        const name = `${m.first_name} ${m.last_name}`;
+        return `<button type="button" onclick="addFamilyLink('${memberId}', '${m.id}', '${name.replace(/'/g,"\\'")}')"
+          class="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-0 text-left">
+          <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:${memberColour(name)}">${name[0]||''}</div>
+          <div class="min-w-0 flex-1"><p class="text-sm font-medium text-gray-800">${name}</p><p class="text-xs text-gray-400">${m.email || ''}</p></div>
+          <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </button>`;
+      }).join('') : '<p class="text-xs text-gray-400 p-3 text-center">No results</p>';
+    } catch(e) { el.innerHTML = '<p class="text-xs text-red-400 p-3 text-center">Search error</p>'; }
+  }, 300);
+}
+
+async function addFamilyLink(parentId, childId, childName) {
+  try {
+    await api('POST', `/api/members/${parentId}/family`, { child_id: childId });
+    showToast(`Linked ${childName}`, 'success');
+    loadFamilyTab(parentId);
+    document.getElementById('family-link-search').value = '';
+    document.getElementById('family-link-results').classList.add('hidden');
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
+}
+
+async function removeFamilyLink(memberId, linkedId) {
+  if (!confirm('Remove this family link?')) return;
+  try {
+    await api('DELETE', `/api/members/${memberId}/family/${linkedId}`);
+    showToast('Link removed', 'success');
+    loadFamilyTab(memberId);
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
 async function updateMember(e, memberId) {

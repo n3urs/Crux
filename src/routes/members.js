@@ -240,6 +240,50 @@ router.delete('/:id', (req, res, next) => {
   try { res.json(Member.delete(req.params.id)); } catch (e) { next(e); }
 });
 
+// Merge profiles — transfers all data from :id to target_id, then deletes :id
+router.post('/:id/merge', (req, res, next) => {
+  try {
+    const db = getDb();
+    const { target_id } = req.body;
+    const source = req.params.id;
+    if (!target_id) return res.status(400).json({ error: 'target_id required' });
+    if (source === target_id) return res.status(400).json({ error: 'Cannot merge a profile with itself' });
+
+    const merge = db.transaction(() => {
+      const tables = [
+        ['member_passes', 'member_id'],
+        ['check_ins', 'member_id'],
+        ['transactions', 'member_id'],
+        ['event_enrolments', 'member_id'],
+        ['member_tags', 'member_id'],
+        ['staff_comments', 'member_id'],
+        ['auth_codes', 'member_id'],
+        ['climb_sends', 'member_id'],
+        ['gift_cards', 'purchased_by_member_id'],
+        ['signed_waivers', 'member_id'],
+      ];
+      for (const [table, col] of tables) {
+        try {
+          db.prepare(`UPDATE OR IGNORE ${table} SET ${col} = ? WHERE ${col} = ?`).run(target_id, source);
+          // Clean up any dupes that couldn't update (ON CONFLICT)
+          db.prepare(`DELETE FROM ${table} WHERE ${col} = ?`).run(source);
+        } catch (e) { /* skip tables that don't exist */ }
+      }
+      // Also handle family_links
+      try {
+        db.prepare(`UPDATE OR IGNORE family_links SET parent_member_id = ? WHERE parent_member_id = ?`).run(target_id, source);
+        db.prepare(`DELETE FROM family_links WHERE parent_member_id = ?`).run(source);
+        db.prepare(`UPDATE OR IGNORE family_links SET child_member_id = ? WHERE child_member_id = ?`).run(target_id, source);
+        db.prepare(`DELETE FROM family_links WHERE child_member_id = ?`).run(source);
+      } catch(e) {}
+      db.prepare(`DELETE FROM members WHERE id = ?`).run(source);
+    });
+    merge();
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+// Family links
 router.post('/:id/family-link', (req, res, next) => {
   try {
     const { childId, relationship } = req.body;
@@ -247,8 +291,41 @@ router.post('/:id/family-link', (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+router.post('/:id/family', (req, res, next) => {
+  try {
+    const db = getDb();
+    const { child_id, relationship } = req.body;
+    if (!child_id) return res.status(400).json({ error: 'child_id required' });
+    const { v4: uuidv4 } = require('uuid');
+    db.prepare(`INSERT OR IGNORE INTO family_links (id, parent_member_id, child_member_id, relationship) VALUES (?, ?, ?, ?)`)
+      .run(uuidv4(), req.params.id, child_id, relationship || 'parent/child');
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
+router.delete('/:id/family/:linkedId', (req, res, next) => {
+  try {
+    const db = getDb();
+    db.prepare(`DELETE FROM family_links WHERE (parent_member_id = ? AND child_member_id = ?) OR (parent_member_id = ? AND child_member_id = ?)`)
+      .run(req.params.id, req.params.linkedId, req.params.linkedId, req.params.id);
+    res.json({ success: true });
+  } catch (e) { next(e); }
+});
+
 router.get('/:id/family', (req, res, next) => {
-  try { res.json(Member.getFamily(req.params.id)); } catch (e) { next(e); }
+  try {
+    const db = getDb();
+    const id = req.params.id;
+    const parents = db.prepare(`
+      SELECT m.*, fl.relationship FROM family_links fl
+      JOIN members m ON m.id = fl.parent_member_id
+      WHERE fl.child_member_id = ?`).all(id);
+    const children = db.prepare(`
+      SELECT m.*, fl.relationship FROM family_links fl
+      JOIN members m ON m.id = fl.child_member_id
+      WHERE fl.parent_member_id = ?`).all(id);
+    res.json({ parents, children });
+  } catch (e) { next(e); }
 });
 
 // Generate QR code as PNG image
