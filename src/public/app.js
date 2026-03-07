@@ -1592,62 +1592,78 @@ function renderPassesTab(passes) {
   const renderPassCard = (p) => {
     const isActive = p.status === 'active';
     const isPaused = p.status === 'paused';
+    const isCancelled = p.status === 'cancelled';
+    const isExpired = p.status === 'expired';
     const now = new Date();
     const expiresAt = p.expires_at ? new Date(p.expires_at) : null;
+    const issuedAt = p.issued_at || p.created_at;
     const expiringToday = expiresAt && expiresAt.toDateString() === now.toDateString();
     const expiringSoon = expiresAt && expiresAt > now && (expiresAt - now) < 7 * 24 * 60 * 60 * 1000;
-    const expired = expiresAt && expiresAt < now;
+    const pastExpiry = expiresAt && expiresAt < now;
 
-    const borderClass = isActive
-      ? (expiringToday ? 'border-l-4 border-l-orange-400' : 'border-l-4 border-l-green-500')
-      : isPaused ? 'border-l-4 border-l-yellow-400' : 'opacity-60';
+    // Badge: square with visits count or ∞
+    const badgeBg = isActive ? '#1E3A5F' : isPaused ? '#9CA3AF' : '#D1D5DB';
+    const badgeText = p.visits_remaining !== null ? String(p.visits_remaining) : '∞';
+    const badgeSubtext = p.visits_remaining !== null ? 'left' : '';
 
-    const badgeClass = isActive ? 'bg-green-100 text-green-700' : isPaused ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-500';
+    // Date range line: "9 sep 2025 → no expiration" matching Beta
+    const shortDate = (d) => {
+      if (!d) return null;
+      const dt = new Date(d);
+      return dt.getDate() + ' ' + dt.toLocaleString('en-GB', { month: 'short' }).toLowerCase() + ' ' + dt.getFullYear();
+    };
+    const issuedStr = shortDate(issuedAt) || '—';
+    const expiryStr = expiresAt
+      ? (expiringToday ? '<span class="text-orange-500 font-semibold">today</span>'
+        : expiringSoon && !pastExpiry ? `<span class="text-yellow-500">${shortDate(p.expires_at)}</span>`
+        : `<span class="${pastExpiry ? 'text-red-400' : ''}">${shortDate(p.expires_at)}</span>`)
+      : '<span class="text-gray-400">no expiration</span>';
 
-    const categoryLabel = {
-      'single_entry': 'Day Entry', 'monthly_pass': 'Monthly Pass',
-      'multi_visit': '10-Visit Pass', 'membership': 'Membership',
-      'annual_membership': 'Annual Membership'
-    }[p.category] || p.category || '';
+    // Actions gear menu
+    const gearMenuId = `pass-gear-${p.id}`;
+    const gearActions = [];
+    if (isActive && p.category !== 'single_entry') gearActions.push(`<button onclick="passAction('pause','${p.id}');document.getElementById('${gearMenuId}').classList.add('hidden')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Pause</button>`);
+    if (isActive && expiresAt) gearActions.push(`<button onclick="passAction('extend','${p.id}');document.getElementById('${gearMenuId}').classList.add('hidden')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50">Extend</button>`);
+    if (isPaused) gearActions.push(`<button onclick="passAction('unpause','${p.id}');document.getElementById('${gearMenuId}').classList.add('hidden')" class="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 text-blue-600 font-medium">Resume</button>`);
+    if (isActive || isPaused) gearActions.push(`<button onclick="passAction('cancel','${p.id}');document.getElementById('${gearMenuId}').classList.add('hidden')" class="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-500">Cancel</button>`);
 
-    let expiryLine = '';
-    if (expiringToday) expiryLine = `<span class="text-orange-500 font-semibold">Expires today</span>`;
-    else if (expiringSoon && !expired) expiryLine = `<span class="text-yellow-600">Expires ${formatDate(p.expires_at)}</span>`;
-    else if (expiresAt) expiryLine = `<span>${expired ? 'Expired' : 'Expires'} ${formatDate(p.expires_at)}</span>`;
-
-    const visitsLine = p.visits_remaining !== null
-      ? `<span class="font-medium text-gray-700">${p.visits_remaining} visit${p.visits_remaining !== 1 ? 's' : ''} remaining</span>`
-      : `<span>Unlimited visits</span>`;
-
-    const priceLine = p.price_paid != null ? `<span>Paid £${parseFloat(p.price_paid).toFixed(2)}</span>` : '';
-
-    const actions = isActive ? `
-      <div class="flex gap-1.5 mt-3 pt-3 border-t border-gray-100">
-        ${p.category !== 'single_entry' ? `<button onclick="passAction('pause','${p.id}')" class="flex-1 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">Pause</button>` : ''}
-        ${p.expires_at ? `<button onclick="passAction('extend','${p.id}')" class="flex-1 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition">Extend</button>` : ''}
-        <button onclick="passAction('cancel','${p.id}')" class="flex-1 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">Cancel</button>
-      </div>` : isPaused ? `
-      <div class="flex gap-1.5 mt-3 pt-3 border-t border-gray-100">
-        <button onclick="passAction('unpause','${p.id}')" class="flex-1 py-1.5 text-xs font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition">Resume Pass</button>
-        <button onclick="passAction('cancel','${p.id}')" class="flex-1 py-1.5 text-xs font-medium rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">Cancel</button>
+    const gearBtn = gearActions.length ? `
+      <div class="relative">
+        <button onclick="event.stopPropagation();const m=document.getElementById('${gearMenuId}');m.classList.toggle('hidden')" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </button>
+        <div id="${gearMenuId}" class="hidden absolute right-0 top-8 bg-white border border-gray-200 rounded-xl shadow-xl z-10 w-36 overflow-hidden">
+          ${gearActions.join('')}
+        </div>
       </div>` : '';
 
+    // Check-in arrow button (active passes only)
+    const checkinBtn = isActive ? `
+      <button onclick="quickCheckInFromProfile(window._currentProfileMemberId, '')" class="p-1.5 rounded-lg hover:bg-blue-50 text-[#1E3A5F] transition" title="Check in with this pass">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
+      </button>` : '';
+
     return `
-      <div class="bg-white border border-gray-200 rounded-xl p-4 mb-3 ${borderClass}">
-        <div class="flex items-start justify-between gap-2">
-          <div class="min-w-0">
-            <h4 class="font-bold text-sm text-gray-900 truncate">${p.pass_name || 'Pass'}</h4>
-            <p class="text-xs text-gray-400 mt-0.5">${categoryLabel}</p>
-          </div>
-          <span class="px-2 py-0.5 rounded-full text-xs font-semibold flex-shrink-0 ${badgeClass}">${p.status}</span>
+      <div class="flex items-center gap-3 p-3 border border-gray-200 rounded-xl mb-2.5 ${isCancelled || isExpired ? 'opacity-50' : ''}">
+        <!-- Square badge -->
+        <div class="w-12 h-12 rounded-xl flex-shrink-0 flex flex-col items-center justify-center text-white font-bold" style="background:${badgeBg}">
+          <span class="text-lg leading-none">${badgeText}</span>
+          ${badgeSubtext ? `<span class="text-xs opacity-70">${badgeSubtext}</span>` : ''}
         </div>
-        <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-2 text-xs text-gray-500">
-          ${visitsLine}${expiryLine ? ' · ' + expiryLine : ''}
-          ${priceLine ? '<br>' + priceLine : ''}
-          ${p.is_peak !== null && p.is_peak !== undefined ? `<span class="${p.is_peak ? 'text-amber-600' : 'text-blue-600'}">${p.is_peak ? 'Peak' : 'Off-peak'}</span>` : ''}
+
+        <!-- Pass info -->
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-900 truncate">${p.pass_name || 'Pass'}</p>
+          ${isPaused ? `<span class="inline-block text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded px-1.5 py-0.5 mb-0.5">subscription is paused</span>` : ''}
+          <p class="text-xs text-gray-400">${issuedStr} → ${expiryStr}</p>
+          ${p.is_peak !== null && p.is_peak !== undefined ? `<p class="text-xs ${p.is_peak ? 'text-amber-600' : 'text-blue-500'}">${p.is_peak ? 'Peak' : 'Off-peak'}</p>` : ''}
         </div>
-        ${isPaused && p.pause_reason ? `<p class="text-xs text-yellow-600 mt-1.5 bg-yellow-50 rounded px-2 py-1">Paused: ${p.pause_reason}</p>` : ''}
-        ${actions}
+
+        <!-- Actions -->
+        <div class="flex items-center gap-1 flex-shrink-0">
+          ${gearBtn}
+          ${checkinBtn}
+        </div>
       </div>`;
   };
 
