@@ -28,7 +28,8 @@ const Product = {
     const updates = [];
     const params = { id };
     if (data.name !== undefined) { updates.push('name = @name'); params.name = data.name; }
-    if (data.sort_order !== undefined) { updates.push('sort_order = @sort_order'); params.sort_order = data.sort_order; }
+    if (data.icon !== undefined) { updates.push('icon = @icon'); params.icon = data.icon; }
+    if (data.sort_order !== undefined) { updates.push('sort_order = @sort_order'); params.sort_order = parseInt(data.sort_order) || 0; }
     if (updates.length) db.prepare(`UPDATE product_categories SET ${updates.join(', ')} WHERE id = @id`).run(params);
     return this.getCategoryById(id);
   },

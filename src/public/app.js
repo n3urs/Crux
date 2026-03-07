@@ -3479,12 +3479,14 @@ async function loadStaff() {
     <!-- Tabs -->
     <div class="flex border-b border-gray-200 mb-6">
       <button onclick="switchSettingsTab('staff')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'staff' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="staff">Staff</button>
+      <button onclick="switchSettingsTab('products')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'products' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="products">Products</button>
       <button onclick="switchSettingsTab('passes')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'passes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="passes">Pass Types</button>
       <button onclick="switchSettingsTab('general')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'general' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="general">General</button>
       <button onclick="switchSettingsTab('integrations')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'integrations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="integrations">Integrations</button>
     </div>
 
     <div id="settings-tab-staff" class="settings-tab-content ${settingsTab !== 'staff' ? 'hidden' : ''}"></div>
+    <div id="settings-tab-products" class="settings-tab-content ${settingsTab !== 'products' ? 'hidden' : ''}"></div>
     <div id="settings-tab-passes" class="settings-tab-content ${settingsTab !== 'passes' ? 'hidden' : ''}"></div>
     <div id="settings-tab-general" class="settings-tab-content ${settingsTab !== 'general' ? 'hidden' : ''}"></div>
     <div id="settings-tab-integrations" class="settings-tab-content ${settingsTab !== 'integrations' ? 'hidden' : ''}"></div>
@@ -3614,6 +3616,7 @@ function printEodReport() {
 async function loadSettingsTabContent(tab) {
   switch (tab) {
     case 'staff': return loadStaffManagement();
+    case 'products': return loadProductSettings();
     case 'passes': return loadPassTypeSettings();
     case 'general': return loadGeneralSettings();
     case 'integrations': return loadIntegrationSettings();
@@ -3814,6 +3817,250 @@ async function toggleStaffStatus(staffId, activate) {
 }
 
 // ---- General Settings Tab ----
+
+// ---- Products Tab ----
+
+async function loadProductSettings() {
+  const container = document.getElementById('settings-tab-products');
+  container.innerHTML = '<p class="text-gray-400 text-center py-8">Loading...</p>';
+  try {
+    const grouped = await api('GET', '/api/products/grouped?activeOnly=false');
+    const totalProducts = grouped.reduce((s, c) => s + c.products.length, 0);
+
+    container.innerHTML = `
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900">Products <span class="text-sm text-gray-400 font-normal">(${totalProducts} total)</span></h3>
+        <div class="flex gap-2">
+          <button onclick="showCategoryModal()" class="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">+ Category</button>
+          <button onclick="showProductModal()" class="px-4 py-2 bg-[#1E3A5F] hover:bg-[#2A4D7A] text-white text-sm font-medium rounded-lg transition">+ Product</button>
+        </div>
+      </div>
+      ${grouped.map(cat => {
+        const products = cat.products || [];
+        return `
+          <div class="mb-5" data-cat-section="${cat.id}">
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs uppercase font-bold text-gray-400 flex items-center gap-1.5">
+                <span>${cat.icon || ''}</span> ${cat.name}
+                <span class="text-gray-300 font-normal normal-case">(${products.length})</span>
+              </h4>
+              <div class="flex gap-1">
+                <button onclick="showProductModal(null, '${cat.id}')" class="text-xs text-blue-600 hover:underline">+ Add here</button>
+                <span class="text-gray-200 mx-1">|</span>
+                <button onclick="showCategoryModal('${cat.id}')" class="text-xs text-gray-400 hover:text-gray-600">Edit</button>
+              </div>
+            </div>
+            <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              ${products.length === 0
+                ? `<p class="text-xs text-gray-400 text-center py-4">No products in this category</p>`
+                : products.map((p, i) => `
+                  <div class="flex items-center justify-between px-4 py-2.5 ${i < products.length - 1 ? 'border-b border-gray-50' : ''} hover:bg-gray-50 transition">
+                    <div class="flex items-center gap-3 min-w-0">
+                      <div class="w-1.5 h-1.5 rounded-full flex-shrink-0 ${p.is_active ? 'bg-green-500' : 'bg-gray-300'}"></div>
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-gray-900 truncate">${p.name}</p>
+                        ${p.description ? `<p class="text-xs text-gray-400 truncate">${p.description}</p>` : ''}
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-3 ml-3 flex-shrink-0">
+                      <span class="text-sm font-bold text-gray-700">£${parseFloat(p.price).toFixed(2)}</span>
+                      ${p.stock_count !== null ? `<span class="text-xs px-1.5 py-0.5 rounded-full ${p.stock_count <= (p.stock_low_threshold || 0) ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'}">Stock: ${p.stock_count}</span>` : ''}
+                      <button onclick="showProductModal('${p.id}')" class="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                      </button>
+                      <button onclick="toggleProductActive('${p.id}', ${!p.is_active})" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-300 hover:text-gray-600 transition" title="${p.is_active ? 'Hide from POS' : 'Show in POS'}">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          ${p.is_active
+                            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>'
+                            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>'}
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                `).join('')}
+            </div>
+          </div>`;
+      }).join('')}
+    `;
+  } catch (err) {
+    container.innerHTML = `<p class="text-red-400 text-center py-8">Error: ${err.message}</p>`;
+  }
+}
+
+async function showProductModal(productId = null, defaultCategoryId = null) {
+  const categories = await api('GET', '/api/products/categories');
+  let product = null;
+  if (productId) {
+    try { product = await api('GET', `/api/products/${productId}`); } catch (e) {}
+  }
+
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[92vh] overflow-y-auto';
+  showModal(`
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-xl font-bold text-gray-900">${product ? 'Edit Product' : 'New Product'}</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <form id="product-form" onsubmit="saveProduct(event, ${product ? `'${product.id}'` : 'null'})" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Product Name *</label>
+          <input type="text" name="name" required class="form-input" value="${product?.name || ''}" placeholder="e.g. Oat Milk Latte" autofocus>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Category *</label>
+          <select name="category_id" required class="form-select">
+            ${categories.map(c => `<option value="${c.id}" ${(product?.category_id || defaultCategoryId) === c.id ? 'selected' : ''}>${c.icon || ''} ${c.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Price (£) *</label>
+            <input type="number" name="price" step="0.01" min="0" required class="form-input" value="${product?.price ?? ''}">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Cost Price (£)</label>
+            <input type="number" name="cost_price" step="0.01" min="0" class="form-input" value="${product?.cost_price ?? ''}" placeholder="Optional">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+          <input type="text" name="description" class="form-input" value="${product?.description || ''}" placeholder="Short description (optional)">
+        </div>
+
+        <div class="border-t border-gray-100 pt-4">
+          <p class="text-xs font-semibold text-gray-500 uppercase mb-3">Stock Tracking</p>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Current Stock</label>
+              <input type="number" name="stock_count" min="0" class="form-input" value="${product?.stock_count ?? ''}" placeholder="Leave blank = no tracking">
+            </div>
+            <div>
+              <label class="block text-xs text-gray-500 mb-1">Low Stock Alert</label>
+              <input type="number" name="stock_low_threshold" min="0" class="form-input" value="${product?.stock_low_threshold ?? ''}" placeholder="e.g. 5">
+            </div>
+          </div>
+          <label class="flex items-center gap-2 mt-3 cursor-pointer">
+            <input type="checkbox" name="stock_enforce_limit" ${product?.stock_enforce_limit ? 'checked' : ''} class="w-4 h-4 rounded">
+            <span class="text-sm text-gray-700">Block sale when out of stock</span>
+          </label>
+        </div>
+
+        <label class="flex items-center gap-2 cursor-pointer pt-1">
+          <input type="checkbox" name="is_active" ${product === null || product?.is_active ? 'checked' : ''} class="w-4 h-4 rounded">
+          <span class="text-sm text-gray-700">Active (show in POS)</span>
+        </label>
+
+        <div class="flex gap-2 pt-2">
+          ${product ? `<button type="button" onclick="deleteProduct('${product.id}')" class="px-4 py-2.5 border border-red-200 text-red-500 rounded-lg text-sm font-medium hover:bg-red-50 transition">Delete</button>` : ''}
+          <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-[#1E3A5F] text-white rounded-lg text-sm font-semibold hover:bg-[#2A4D7A] transition">${product ? 'Save' : 'Add Product'}</button>
+        </div>
+      </form>
+    </div>
+  `);
+}
+
+async function saveProduct(e, productId) {
+  e.preventDefault();
+  const form = document.getElementById('product-form');
+  const data = Object.fromEntries(new FormData(form));
+  data.is_active = form.querySelector('[name="is_active"]').checked ? 1 : 0;
+  data.stock_enforce_limit = form.querySelector('[name="stock_enforce_limit"]').checked ? 1 : 0;
+  if (data.stock_count === '') data.stock_count = null;
+  if (data.stock_low_threshold === '') data.stock_low_threshold = null;
+  if (data.cost_price === '') data.cost_price = null;
+
+  try {
+    if (productId) {
+      await api('PUT', `/api/products/${productId}`, data);
+      showToast('Product updated', 'success');
+    } else {
+      await api('POST', '/api/products', data);
+      showToast('Product added', 'success');
+    }
+    closeModal();
+    loadProductSettings();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function toggleProductActive(productId, active) {
+  await api('PUT', `/api/products/${productId}`, { is_active: active ? 1 : 0 });
+  loadProductSettings();
+}
+
+async function deleteProduct(productId) {
+  if (!confirm('Delete this product? It will be removed from the POS. Past transactions are unaffected.')) return;
+  try {
+    await api('DELETE', `/api/products/${productId}`);
+    showToast('Product deleted', 'success');
+    closeModal();
+    loadProductSettings();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function showCategoryModal(categoryId = null) {
+  let cat = null;
+  if (categoryId) {
+    const cats = await api('GET', '/api/products/categories');
+    cat = cats.find(c => c.id === categoryId);
+  }
+
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4';
+  showModal(`
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-bold text-gray-900">${cat ? 'Edit Category' : 'New Category'}</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <form id="category-form" onsubmit="saveCategory(event, ${cat ? `'${cat.id}'` : 'null'})" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Category Name *</label>
+          <input type="text" name="name" required class="form-input" value="${cat?.name || ''}" placeholder="e.g. Protein Shakes" autofocus>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Emoji Icon</label>
+          <input type="text" name="icon" class="form-input text-2xl text-center" value="${cat?.icon || ''}" placeholder="🛍️" maxlength="4">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Sort Order</label>
+          <input type="number" name="sort_order" class="form-input" value="${cat?.sort_order ?? 99}" min="0">
+        </div>
+        <div class="flex gap-2 pt-1">
+          ${cat ? `<button type="button" onclick="deleteCategory('${cat.id}')" class="px-3 py-2.5 border border-red-200 text-red-500 rounded-lg text-sm font-medium hover:bg-red-50">Delete</button>` : ''}
+          <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-[#1E3A5F] text-white rounded-lg text-sm font-semibold hover:bg-[#2A4D7A]">${cat ? 'Save' : 'Create'}</button>
+        </div>
+      </form>
+    </div>
+  `);
+}
+
+async function saveCategory(e, categoryId) {
+  e.preventDefault();
+  const form = document.getElementById('category-form');
+  const data = Object.fromEntries(new FormData(form));
+  try {
+    if (categoryId) {
+      await api('PUT', `/api/products/categories/${categoryId}`, data);
+      showToast('Category updated', 'success');
+    } else {
+      await api('POST', '/api/products/categories', data);
+      showToast('Category created', 'success');
+    }
+    closeModal();
+    loadProductSettings();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function deleteCategory(categoryId) {
+  if (!confirm('Delete this category? Products inside will need to be reassigned.')) return;
+  try {
+    await api('DELETE', `/api/products/categories/${categoryId}`);
+    showToast('Category deleted', 'success');
+    closeModal();
+    loadProductSettings();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
 
 // ---- Pass Types Tab ----
 
