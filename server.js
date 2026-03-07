@@ -34,6 +34,7 @@ app.use('/api/email', require('./src/routes/email'));
 app.use('/api/settings', require('./src/routes/settings'));
 app.use('/api/stats', require('./src/routes/stats'));
 app.use('/api', require('./src/routes/register'));
+app.use('/api/dojo', require('./src/routes/dojo'));
 
 // Climber portal API + pages
 const climberRoutes = require('./src/routes/climber');
@@ -44,6 +45,9 @@ app.get('/app/*', (req, res) => res.sendFile(path.join(__dirname, 'src', 'public
 // Public registration page (no auth required)
 app.get('/register', (req, res) => {
   res.sendFile(path.join(__dirname, 'src', 'public', 'register.html'));
+});
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'src', 'public', 'privacy.html'));
 });
 
 // Serve static frontend files

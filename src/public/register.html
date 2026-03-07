@@ -360,6 +360,26 @@
         </div>
       </div>
 
+      <!-- GDPR Consent checkboxes -->
+      <div class="mt-5 space-y-3 border border-gray-200 rounded-xl p-4 bg-gray-50">
+        <p class="text-xs font-bold text-gray-500 uppercase mb-2">Consent & Data Protection</p>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" id="consent-privacy" class="mt-0.5 flex-shrink-0 w-4 h-4 text-[#1E3A5F]" required>
+          <span class="text-sm text-gray-700">I have read and agree to the <a href="/privacy" target="_blank" class="text-blue-600 underline font-medium">Privacy Policy</a>. I understand how BoulderRyn collects, uses and stores my personal data. <span class="text-red-500">*</span></span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" id="consent-medical" class="mt-0.5 flex-shrink-0 w-4 h-4 text-[#1E3A5F]" required>
+          <span class="text-sm text-gray-700">I explicitly consent to BoulderRyn storing any medical information I have provided (under Article 9 UK GDPR) for safety purposes. I understand I can withdraw this consent at any time by contacting staff. <span class="text-red-500">*</span></span>
+        </label>
+
+        <label class="flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" id="consent-age" class="mt-0.5 flex-shrink-0 w-4 h-4 text-[#1E3A5F]" required>
+          <span class="text-sm text-gray-700" id="consent-age-label">I confirm I am 18 years of age or older, or that a parent/guardian is completing this form on my behalf. <span class="text-red-500">*</span></span>
+        </label>
+      </div>
+
       <div id="step4-error" class="text-red-500 text-sm mt-3 hidden"></div>
 
       <div class="flex gap-3 mt-6">
@@ -694,6 +714,23 @@
       const errEl = document.getElementById('step4-error');
       const btn = document.getElementById('btn-submit');
 
+      // Validate consent checkboxes
+      if (!document.getElementById('consent-privacy').checked) {
+        errEl.textContent = 'You must agree to the Privacy Policy to register.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (!document.getElementById('consent-medical').checked) {
+        errEl.textContent = 'You must consent to medical data processing to register.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+      if (!document.getElementById('consent-age').checked) {
+        errEl.textContent = 'You must confirm the age declaration.';
+        errEl.classList.remove('hidden');
+        return;
+      }
+
       // Validate signature
       if (!signatures['sig-canvas']) {
         errEl.textContent = 'Please provide your signature';
@@ -727,7 +764,10 @@
         postal_code: document.getElementById('reg-postcode').value.trim() || null,
         emergency_contact_name: document.getElementById('reg-ec-name').value.trim(),
         emergency_contact_phone: document.getElementById('reg-ec-phone').value.trim(),
-        medical_conditions: document.getElementById('reg-medical').value.trim() || 'None',
+        medical_conditions: document.getElementById('reg-medical').value.trim() || null,
+        medical_consent: 1,
+        privacy_accepted: 1,
+        privacy_accepted_at: new Date().toISOString(),
         climbing_experience: exp ? exp.value : null,
         member_of_other_walls: document.getElementById('reg-other-walls').value.trim(),
         climbs_past_12_months: document.getElementById('reg-climbs-12m').value.trim(),
