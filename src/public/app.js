@@ -2286,7 +2286,7 @@ async function _doEditMemberModal(memberId, activeTab = 'edit') {
 
   const fullName = `${m.first_name} ${m.last_name}`;
   const dob = m.date_of_birth ? formatDate(m.date_of_birth) : '—';
-  const colour = memberColour(m.first_name + m.last_name);
+  const colour = nameToColour(m.first_name + m.last_name);
   const initials = ((m.first_name||'')[0]||'') + ((m.last_name||'')[0]||'');
 
   const mergeHtml = `
@@ -2402,7 +2402,7 @@ async function searchMergeTarget(excludeId, query) {
       resultsEl.innerHTML = list.map(mem => {
         const name = `${mem.first_name} ${mem.last_name}`;
         const dob = mem.date_of_birth ? formatDate(mem.date_of_birth) : '';
-        const colour = memberColour(name);
+        const colour = nameToColour(name);
         const initials = ((mem.first_name||'')[0]||'') + ((mem.last_name||'')[0]||'');
         const enc = encodeURIComponent(JSON.stringify({id:mem.id,photo_url:mem.photo_url||null,first_name:mem.first_name,last_name:mem.last_name,email:mem.email,date_of_birth:mem.date_of_birth,gender:mem.gender,phone:mem.phone,address_line1:mem.address_line1,city:mem.city,region:mem.region,postal_code:mem.postal_code}));
         return `<button type="button" onclick="selectMergeTarget(decodeURIComponent('${enc}'))"
@@ -2424,7 +2424,7 @@ function selectMergeTarget(jsonStr) {
 
   // Replace the search box area with the selected profile card
   const area = document.getElementById('merge-target-area');
-  const colour = memberColour(`${t.first_name}${t.last_name}`);
+  const colour = nameToColour(`${t.first_name}${t.last_name}`);
   const initials = ((t.first_name||'')[0]||'') + ((t.last_name||'')[0]||'');
   const dob = t.date_of_birth ? formatDate(t.date_of_birth) : '—';
   area.innerHTML = `
@@ -2513,7 +2513,7 @@ async function loadFamilyTab(memberId) {
       const fullName = `${m.first_name} ${m.last_name}`;
       const age = m.date_of_birth ? Math.floor((Date.now() - new Date(m.date_of_birth)) / (365.25*24*60*60*1000)) : null;
       return `<div class="flex items-center gap-3 p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition">
-        <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style="background:${memberColour(fullName)}">${(m.first_name[0]||'')+(m.last_name[0]||'')}</div>
+        <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0" style="background:${nameToColour(fullName)}">${(m.first_name[0]||'')+(m.last_name[0]||'')}</div>
         <div class="flex-1 min-w-0">
           <p class="text-sm font-semibold text-gray-800">${fullName}</p>
           <p class="text-xs text-gray-400">${rel}${age !== null ? ' · Age ' + age : ''}</p>
@@ -2550,7 +2550,7 @@ async function searchFamilyLink(memberId, query) {
         const name = `${m.first_name} ${m.last_name}`;
         return `<button type="button" onclick="addFamilyLink('${memberId}', '${m.id}', '${name.replace(/'/g,"\\'")}')"
           class="w-full flex items-center gap-3 px-3 py-2 hover:bg-gray-50 border-b border-gray-50 last:border-0 text-left">
-          <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:${memberColour(name)}">${name[0]||''}</div>
+          <div class="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:${nameToColour(name)}">${name[0]||''}</div>
           <div class="min-w-0 flex-1"><p class="text-sm font-medium text-gray-800">${name}</p><p class="text-xs text-gray-400">${m.email || ''}</p></div>
           <svg class="w-4 h-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
         </button>`;
