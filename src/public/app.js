@@ -342,6 +342,34 @@ function renderMemberCard(m, options = {}) {
   `;
 }
 
+// One-press check-in from member profile (no PIN — member has active pass, staff already looked them up)
+async function quickCheckInFromProfile(memberId, name) {
+  try {
+    const result = await api('POST', '/api/checkin/process', { memberId });
+    if (result.success) {
+      showToast(`${name} checked in`, 'success');
+      if (result.registrationWarning) {
+        showToast('REGISTRATION FEE NOT PAID — collect £3', 'error');
+      }
+      closeModal();
+      loadActiveVisitors();
+    } else {
+      showToast(result.error || 'Check-in failed', 'error');
+    }
+  } catch (err) {
+    showToast('Check-in failed: ' + err.message, 'error');
+  }
+}
+
+// Open POS for a member — requires PIN first
+function openPOSForMemberWithPin(memberId, name) {
+  requirePin('pos', (staff) => {
+    posOperator = staff;
+    closeModal();
+    openPOSForMember(memberId, name);
+  }, 'Staff PIN', `Opening POS for ${name}`);
+}
+
 function quickCheckIn(memberId) {
   requirePin('checkin', async (staff) => {
     try {
@@ -373,11 +401,14 @@ function navigateTo(pageName) {
   const navLink = document.querySelector(`[data-page="${pageName}"]`);
   const pinRequired = navLink ? navLink.dataset.pinRequired : null;
 
-  // Pages that require PIN to even VIEW (analytics, settings)
+  // Pages that require PIN to VIEW/ENTER
   if (pinRequired) {
+    const pinTitle = navLink?.dataset.pinTitle || 'Enter PIN';
+    const pinDesc = navLink?.dataset.pinDesc || '';
     requirePin(pinRequired, (staff) => {
+      posOperator = staff; // Set POS operator from the nav-level PIN
       doNavigate(pageName);
-    }, 'Enter PIN', `${pageName === 'staff' ? 'Settings' : 'Analytics'} requires authorisation`);
+    }, pinTitle, pinDesc);
     return;
   }
 
@@ -1142,7 +1173,14 @@ async function openMemberProfile(memberId) {
           </div>
 
           <div class="mt-4 space-y-2">
-            <button onclick="closeModal(); openPOSForMember('${member.id}', '${fullName.replace(/'/g, "\\'")}')" class="btn btn-primary w-full btn-sm">Open in POS</button>
+            ${member.has_valid_pass ? `
+              <button onclick="quickCheckInFromProfile('${member.id}', '${fullName.replace(/'/g, "\\'")}')"
+                class="w-full py-2.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition text-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                Check In
+              </button>
+            ` : ''}
+            <button onclick="openPOSForMemberWithPin('${member.id}', '${fullName.replace(/'/g, "\\'")}')" class="btn btn-primary w-full btn-sm">Open in POS</button>
             <button onclick="editMemberModal('${member.id}')" class="btn btn-secondary w-full btn-sm">Edit Profile</button>
             ${passes.some(p => p.category === 'membership' && p.status === 'active') ? `
               <button onclick="showMemberQrCode('${member.id}', '${fullName.replace(/'/g, "\\'")}')" class="btn btn-secondary w-full btn-sm">View QR Code</button>

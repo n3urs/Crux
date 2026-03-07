@@ -222,15 +222,6 @@ function posRenderProductGrid(categoryId) {
 }
 
 async function posAddToCart(productId) {
-  // If no operator assigned yet, require PIN first
-  if (!posOperator) {
-    requirePin('pos', (staff) => {
-      posOperator = staff;
-      posRenderOperatorBadge();
-      _doAddToCart(productId);
-    }, 'Staff PIN', 'Identify yourself to start a transaction');
-    return;
-  }
   _doAddToCart(productId);
 }
 
