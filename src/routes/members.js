@@ -17,13 +17,44 @@ router.get('/count', (req, res, next) => {
 
 router.get('/list', (req, res, next) => {
   try {
-    const opts = {
-      page: parseInt(req.query.page) || 1,
-      perPage: parseInt(req.query.perPage) || 50,
-      orderBy: req.query.orderBy || 'last_name',
-      order: req.query.order || 'ASC',
-    };
-    res.json(Member.list(opts));
+    const db = getDb();
+    const page = parseInt(req.query.page) || 1;
+    const perPage = parseInt(req.query.perPage) || 50;
+    const filter = req.query.filter;
+    const offset = (page - 1) * perPage;
+
+    let where = '';
+    switch (filter) {
+      case 'reg_due':
+        where = 'WHERE m.registration_fee_paid = 0 OR m.registration_fee_paid IS NULL'; break;
+      case 'no_waiver':
+        where = `WHERE NOT EXISTS (SELECT 1 FROM signed_waivers sw WHERE sw.member_id = m.id AND (sw.expires_at IS NULL OR sw.expires_at > datetime('now')))`; break;
+      case 'no_pass':
+        where = `WHERE NOT EXISTS (SELECT 1 FROM member_passes mp WHERE mp.member_id = m.id AND mp.status = 'active' AND (mp.expires_at IS NULL OR mp.expires_at > datetime('now')) AND (mp.visits_remaining IS NULL OR mp.visits_remaining > 0))`; break;
+      case 'active_pass':
+        where = `WHERE EXISTS (SELECT 1 FROM member_passes mp WHERE mp.member_id = m.id AND mp.status = 'active' AND (mp.expires_at IS NULL OR mp.expires_at > datetime('now')) AND (mp.visits_remaining IS NULL OR mp.visits_remaining > 0))`; break;
+      case 'under_18':
+        where = `WHERE m.date_of_birth IS NOT NULL AND date(m.date_of_birth, '+18 years') > date('now')`; break;
+    }
+
+    if (!filter || filter === 'all') {
+      const opts = { page, perPage, orderBy: req.query.orderBy || 'last_name', order: req.query.order || 'ASC' };
+      return res.json(Member.list(opts));
+    }
+
+    const total = db.prepare(`SELECT COUNT(*) as c FROM members m ${where}`).get().c;
+    const members = db.prepare(`
+      SELECT m.*, 
+        (SELECT COUNT(*) FROM check_ins ci WHERE ci.member_id = m.id) as total_visits,
+        (SELECT MAX(ci.checked_in_at) FROM check_ins ci WHERE ci.member_id = m.id) as last_visit,
+        (SELECT 1 FROM member_passes mp WHERE mp.member_id = m.id AND mp.status = 'active' AND (mp.expires_at IS NULL OR mp.expires_at > datetime('now')) AND (mp.visits_remaining IS NULL OR mp.visits_remaining > 0) LIMIT 1) as has_valid_pass,
+        (SELECT 1 FROM signed_waivers sw WHERE sw.member_id = m.id AND (sw.expires_at IS NULL OR sw.expires_at > datetime('now')) LIMIT 1) as waiver_valid
+      FROM members m ${where}
+      ORDER BY m.last_name ASC, m.first_name ASC
+      LIMIT ? OFFSET ?
+    `).all(perPage, offset);
+
+    res.json({ members, total, page, perPage });
   } catch (e) { next(e); }
 });
 

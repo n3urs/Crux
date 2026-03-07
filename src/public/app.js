@@ -1058,8 +1058,14 @@ async function loadMembers() {
       </div>
     </div>
 
-    <div class="card mb-4">
+    <div class="card mb-4 space-y-3">
       <input type="text" id="member-search" class="form-input" placeholder="Search members by name, email, or phone..." oninput="searchMembers(this.value)">
+      <div class="flex flex-wrap gap-2" id="member-filter-chips">
+        ${['all','reg_due','no_waiver','no_pass','active_pass','under_18'].map((f, i) => {
+          const labels = { all: 'All members', reg_due: 'Reg fee due', no_waiver: 'No waiver', no_pass: 'No active pass', active_pass: 'Has pass', under_18: 'Under 18' };
+          return `<button onclick="setMemberFilter('${f}')" data-filter="${f}" class="member-filter-chip px-3 py-1 rounded-full text-xs font-medium border transition ${i === 0 ? 'bg-[#1E3A5F] text-white border-[#1E3A5F]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#1E3A5F] hover:text-[#1E3A5F]'}">${labels[f]}</button>`;
+        }).join('')}
+      </div>
     </div>
 
     <div class="card p-0 overflow-x-auto">
@@ -1086,9 +1092,24 @@ async function loadMembers() {
 }
 
 let memberSearchTimeout = null;
+let memberActiveFilter = 'all';
+
 function searchMembers(query) {
   clearTimeout(memberSearchTimeout);
-  memberSearchTimeout = setTimeout(() => refreshMembersList(query), 200);
+  memberSearchTimeout = setTimeout(() => refreshMembersList(query, 1, memberActiveFilter), 200);
+}
+
+function setMemberFilter(filter) {
+  memberActiveFilter = filter;
+  document.querySelectorAll('.member-filter-chip').forEach(chip => {
+    const active = chip.dataset.filter === filter;
+    chip.className = chip.className.replace(/bg-\[#1E3A5F\] text-white border-\[#1E3A5F\]|bg-white text-gray-600 border-gray-300 hover:border-\[#1E3A5F\] hover:text-\[#1E3A5F\]/g, '');
+    chip.className += active
+      ? ' bg-[#1E3A5F] text-white border-[#1E3A5F]'
+      : ' bg-white text-gray-600 border-gray-300 hover:border-[#1E3A5F] hover:text-[#1E3A5F]';
+  });
+  const q = document.getElementById('member-search')?.value || '';
+  refreshMembersList(q, 1, filter);
 }
 
 async function exportMembersCSV() {
@@ -1144,17 +1165,18 @@ async function exportMembersCSV() {
   }
 }
 
-async function refreshMembersList(query = '', page = 1) {
+async function refreshMembersList(query = '', page = 1, filter = memberActiveFilter) {
   const tbody = document.getElementById('members-table-body');
   const countText = document.getElementById('member-count-text');
 
   let members, total;
+  const filterParam = filter && filter !== 'all' ? `&filter=${filter}` : '';
 
   if (query) {
-    members = await api('GET', `/api/members/search?q=${encodeURIComponent(query)}&limit=50`);
+    members = await api('GET', `/api/members/search?q=${encodeURIComponent(query)}&limit=50${filterParam}`);
     total = members.length;
   } else {
-    const result = await api('GET', `/api/members/list?page=${page}&perPage=50`);
+    const result = await api('GET', `/api/members/list?page=${page}&perPage=50${filterParam}`);
     members = result.members;
     total = result.total;
   }
@@ -3456,12 +3478,14 @@ async function loadStaff() {
 
     <!-- Tabs -->
     <div class="flex border-b border-gray-200 mb-6">
-      <button onclick="switchSettingsTab('staff')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'staff' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="staff">Staff Management</button>
+      <button onclick="switchSettingsTab('staff')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'staff' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="staff">Staff</button>
+      <button onclick="switchSettingsTab('passes')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'passes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="passes">Pass Types</button>
       <button onclick="switchSettingsTab('general')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'general' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="general">General</button>
       <button onclick="switchSettingsTab('integrations')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'integrations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="integrations">Integrations</button>
     </div>
 
     <div id="settings-tab-staff" class="settings-tab-content ${settingsTab !== 'staff' ? 'hidden' : ''}"></div>
+    <div id="settings-tab-passes" class="settings-tab-content ${settingsTab !== 'passes' ? 'hidden' : ''}"></div>
     <div id="settings-tab-general" class="settings-tab-content ${settingsTab !== 'general' ? 'hidden' : ''}"></div>
     <div id="settings-tab-integrations" class="settings-tab-content ${settingsTab !== 'integrations' ? 'hidden' : ''}"></div>
   `;
@@ -3590,6 +3614,7 @@ function printEodReport() {
 async function loadSettingsTabContent(tab) {
   switch (tab) {
     case 'staff': return loadStaffManagement();
+    case 'passes': return loadPassTypeSettings();
     case 'general': return loadGeneralSettings();
     case 'integrations': return loadIntegrationSettings();
   }
@@ -3789,6 +3814,168 @@ async function toggleStaffStatus(staffId, activate) {
 }
 
 // ---- General Settings Tab ----
+
+// ---- Pass Types Tab ----
+
+const PASS_CATEGORIES = {
+  single_entry: 'Day Entry',
+  multi_visit: '10-Visit Pass',
+  monthly_pass: 'Monthly Pass',
+  annual_membership: 'Annual Membership',
+  membership: 'Membership',
+};
+
+async function loadPassTypeSettings() {
+  const container = document.getElementById('settings-tab-passes');
+  container.innerHTML = '<p class="text-gray-400 text-center py-8">Loading...</p>';
+  try {
+    const types = await api('GET', '/api/passes/types?activeOnly=false');
+    const grouped = {};
+    types.forEach(t => {
+      const cat = t.category || 'other';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(t);
+    });
+
+    container.innerHTML = `
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900">Pass Types</h3>
+        <button onclick="showPassTypeModal()" class="px-4 py-2 bg-[#1E3A5F] hover:bg-[#2A4D7A] text-white text-sm font-medium rounded-lg transition">+ New Pass Type</button>
+      </div>
+      ${Object.entries(grouped).map(([cat, passes]) => `
+        <div class="mb-5">
+          <h4 class="text-xs uppercase font-bold text-gray-400 mb-2">${PASS_CATEGORIES[cat] || cat}</h4>
+          <div class="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            ${passes.map((p, i) => `
+              <div class="flex items-center justify-between px-4 py-3 ${i < passes.length - 1 ? 'border-b border-gray-100' : ''}">
+                <div class="flex items-center gap-3">
+                  <div class="w-2 h-2 rounded-full ${p.is_active ? 'bg-green-500' : 'bg-gray-300'}"></div>
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">${p.name}</p>
+                    <div class="flex items-center gap-3 mt-0.5 text-xs text-gray-400">
+                      <span>Peak: <strong class="text-gray-700">£${parseFloat(p.price_peak || 0).toFixed(2)}</strong></span>
+                      ${p.price_off_peak !== p.price_peak ? `<span>Off-peak: <strong class="text-gray-700">£${parseFloat(p.price_off_peak || 0).toFixed(2)}</strong></span>` : ''}
+                      ${p.visits_included ? `<span>${p.visits_included} visits</span>` : ''}
+                      ${p.duration_days ? `<span>${p.duration_days} days</span>` : ''}
+                    </div>
+                  </div>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button onclick="showPassTypeModal('${p.id}')" class="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-blue-600 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                  </button>
+                  <button onclick="togglePassTypeActive('${p.id}', ${!p.is_active})" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition" title="${p.is_active ? 'Disable' : 'Enable'}">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      ${p.is_active
+                        ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>'
+                        : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>'}
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `).join('')}
+    `;
+  } catch (err) {
+    container.innerHTML = `<p class="text-red-400 text-center py-8">Error: ${err.message}</p>`;
+  }
+}
+
+async function showPassTypeModal(passTypeId = null) {
+  let pt = null;
+  if (passTypeId) {
+    try { pt = await api('GET', `/api/passes/types/${passTypeId}`); } catch (e) {}
+    if (!pt) {
+      const all = await api('GET', '/api/passes/types?activeOnly=false');
+      pt = all.find(p => p.id === passTypeId);
+    }
+  }
+
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[90vh] overflow-y-auto';
+  showModal(`
+    <div class="p-6">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-xl font-bold text-gray-900">${pt ? 'Edit Pass Type' : 'New Pass Type'}</h3>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+      </div>
+      <form id="pass-type-form" onsubmit="savePassType(event, ${pt ? `'${pt.id}'` : 'null'})" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Name *</label>
+          <input type="text" name="name" required class="form-input" value="${pt?.name || ''}" placeholder="e.g. Adult Single Entry">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Category *</label>
+          <select name="category" required class="form-select">
+            ${Object.entries(PASS_CATEGORIES).map(([val, label]) => `<option value="${val}" ${pt?.category === val ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Peak Price (£) *</label>
+            <input type="number" name="price_peak" step="0.01" min="0" required class="form-input" value="${pt?.price_peak ?? ''}">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Off-Peak Price (£)</label>
+            <input type="number" name="price_off_peak" step="0.01" min="0" class="form-input" value="${pt?.price_off_peak ?? ''}" placeholder="Same as peak">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Visits Included</label>
+            <input type="number" name="visits_included" min="1" class="form-input" value="${pt?.visits_included ?? ''}" placeholder="Blank = unlimited">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Duration (days)</label>
+            <input type="number" name="duration_days" min="1" class="form-input" value="${pt?.duration_days ?? ''}" placeholder="Blank = no expiry">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Description</label>
+          <input type="text" name="description" class="form-input" value="${pt?.description || ''}" placeholder="Optional note">
+        </div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="is_active" ${pt === null || pt?.is_active ? 'checked' : ''} class="w-4 h-4 rounded">
+          <span class="text-sm text-gray-700">Active (visible in POS and Assign Pass)</span>
+        </label>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button type="submit" class="flex-1 py-2.5 bg-[#1E3A5F] text-white rounded-lg text-sm font-semibold hover:bg-[#2A4D7A] transition">${pt ? 'Save Changes' : 'Create Pass Type'}</button>
+        </div>
+      </form>
+    </div>
+  `);
+}
+
+async function savePassType(e, passTypeId) {
+  e.preventDefault();
+  const form = document.getElementById('pass-type-form');
+  const data = Object.fromEntries(new FormData(form));
+  data.is_active = form.querySelector('[name="is_active"]').checked ? 1 : 0;
+  if (!data.price_off_peak) data.price_off_peak = data.price_peak;
+  if (!data.visits_included) data.visits_included = null;
+  if (!data.duration_days) data.duration_days = null;
+
+  try {
+    if (passTypeId) {
+      await api('PUT', `/api/passes/types/${passTypeId}`, data);
+      showToast('Pass type updated', 'success');
+    } else {
+      await api('POST', '/api/passes/types', data);
+      showToast('Pass type created', 'success');
+    }
+    closeModal();
+    loadPassTypeSettings();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
+
+async function togglePassTypeActive(passTypeId, active) {
+  try {
+    await api('PUT', `/api/passes/types/${passTypeId}`, { is_active: active ? 1 : 0 });
+    loadPassTypeSettings();
+  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+}
 
 async function loadGeneralSettings() {
   const container = document.getElementById('settings-tab-general');
