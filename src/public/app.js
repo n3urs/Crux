@@ -1249,6 +1249,11 @@ async function openMemberProfile(memberId) {
             ${address ? `<div><span class="text-gray-400 text-xs uppercase">Address</span><p class="font-medium">${address}</p></div>` : ''}
             ${member.emergency_contact_name ? `<div><span class="text-gray-400 text-xs uppercase">Emergency Contact</span><p class="font-medium">${member.emergency_contact_name} ${member.emergency_contact_phone ? '(' + member.emergency_contact_phone + ')' : ''}</p></div>` : ''}
             ${member.medical_conditions ? `<div class="bg-yellow-50 border border-yellow-200 rounded-lg p-2"><span class="text-yellow-800 text-xs uppercase font-bold">Medical</span><p class="text-yellow-700 text-sm">${member.medical_conditions}</p></div>` : ''}
+            <div class="flex items-center gap-3 flex-wrap pt-1">
+              ${member.waiver_valid ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Waiver</span>` : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-medium">No waiver</span>`}
+              ${member.registration_fee_paid ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium"><svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>Reg fee</span>` : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-100 text-orange-600 text-xs font-medium">£3 reg fee due</span>`}
+              ${member.has_app ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-xs font-medium"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>Has app</span>` : ''}
+            </div>
           </div>
 
           <div class="mt-4 space-y-2">
@@ -1485,29 +1490,104 @@ function renderVisitsTab(visits) {
 }
 
 function renderEventsTab(events) {
+  const memberId = window._currentProfileMemberId;
+  const statusColour = { 'enrolled': 'bg-green-100 text-green-700', 'waitlisted': 'bg-yellow-100 text-yellow-700', 'cancelled': 'bg-gray-100 text-gray-500', 'attended': 'bg-blue-100 text-blue-700', 'no_show': 'bg-red-100 text-red-500' };
+
+  const enrolBtn = memberId ? `<button onclick="enrolMemberInEvent('${memberId}')" class="flex items-center gap-1.5 px-3 py-1.5 bg-[#1E3A5F] text-white rounded-lg text-xs font-semibold hover:bg-[#2A4D7A] transition">
+    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+    Book Event
+  </button>` : '';
+
   if (!events || events.length === 0) {
-    return `<div class="text-center py-10">
+    return `<div class="text-center py-8">
       <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-      <p class="text-gray-400 text-sm">No events booked</p>
+      <p class="text-gray-400 text-sm mb-3">No events booked</p>
+      ${enrolBtn}
     </div>`;
   }
 
-  const statusColour = { 'enrolled': 'bg-green-100 text-green-700', 'waitlist': 'bg-yellow-100 text-yellow-700', 'cancelled': 'bg-gray-100 text-gray-500', 'attended': 'bg-blue-100 text-blue-700' };
-  return `<div class="space-y-2">
-    ${events.map(e => {
-      const dt = e.starts_at ? new Date(e.starts_at) : null;
-      const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—';
-      const isPast = dt && dt < new Date();
-      const sc = statusColour[e.status] || 'bg-gray-100 text-gray-600';
-      return `<div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 ${isPast ? 'opacity-60' : ''}">
-        <div>
-          <p class="text-sm font-semibold text-gray-800">${e.event_name}</p>
-          <p class="text-xs text-gray-400 mt-0.5">${dateStr}</p>
+  return `
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-xs text-gray-400">${events.length} booking${events.length !== 1 ? 's' : ''}</p>
+      ${enrolBtn}
+    </div>
+    <div class="space-y-2">
+      ${events.map(e => {
+        const dt = e.starts_at ? new Date(e.starts_at) : null;
+        const dateStr = dt ? dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        const isPast = dt && dt < new Date();
+        const sc = statusColour[e.status] || 'bg-gray-100 text-gray-600';
+        const canCancel = ['enrolled', 'waitlisted'].includes(e.status);
+        return `<div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 ${isPast ? 'opacity-70' : ''}">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-gray-800 truncate">${e.event_name}</p>
+            <p class="text-xs text-gray-400 mt-0.5">${dateStr}</p>
+          </div>
+          <div class="flex items-center gap-2 ml-2 flex-shrink-0">
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${sc}">${e.status}</span>
+            ${canCancel ? `<button onclick="cancelEventEnrolment('${e.id}', '${e.event_name?.replace(/'/g, "\\'")}')" class="text-gray-300 hover:text-red-400 transition"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function enrolMemberInEvent(memberId) {
+  try {
+    const events = await api('GET', '/api/events?status=active&upcoming=true');
+    const upcoming = (events.items || events || []).filter(e => new Date(e.starts_at) > new Date());
+
+    showModal(`
+      <div class="max-w-md mx-auto">
+        <h3 class="text-lg font-bold text-gray-900 mb-4">Book Event</h3>
+        ${upcoming.length === 0 ? '<p class="text-gray-400 text-sm py-4">No upcoming events available.</p>' : `
+        <div class="space-y-2 max-h-80 overflow-y-auto">
+          ${upcoming.map(e => {
+            const dt = new Date(e.starts_at);
+            const dateStr = dt.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+            const timeStr = dt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            const spotsLeft = e.capacity ? e.capacity - (e.enrolled_count || 0) : null;
+            const full = spotsLeft !== null && spotsLeft <= 0;
+            return `<div class="flex items-center justify-between p-3 rounded-xl border ${full ? 'border-gray-100 opacity-60' : 'border-gray-200 hover:border-blue-300 cursor-pointer hover:bg-blue-50'} transition"
+              ${full ? '' : `onclick="doEnrolMemberInEvent('${memberId}','${e.id}','${e.name?.replace(/'/g, "\\'")}')"`}>
+              <div>
+                <p class="text-sm font-semibold text-gray-800">${e.name}</p>
+                <p class="text-xs text-gray-400">${dateStr} · ${timeStr}</p>
+              </div>
+              ${full ? `<span class="text-xs text-red-400 font-medium">Full</span>` : spotsLeft !== null ? `<span class="text-xs text-green-600 font-medium">${spotsLeft} left</span>` : `<span class="text-xs text-gray-400">Open</span>`}
+            </div>`;
+          }).join('')}
+        </div>`}
+        <div class="mt-4 text-right">
+          <button onclick="closeModal()" class="px-4 py-2 text-sm text-gray-600 hover:text-gray-800">Close</button>
         </div>
-        <span class="px-2 py-0.5 rounded-full text-xs font-medium ${sc}">${e.status}</span>
-      </div>`;
-    }).join('')}
-  </div>`;
+      </div>
+    `);
+  } catch (err) {
+    showToast('Error loading events: ' + err.message, 'error');
+  }
+}
+
+async function doEnrolMemberInEvent(memberId, eventId, eventName) {
+  try {
+    await api('POST', `/api/events/${eventId}/enroll`, { member_id: memberId });
+    showToast(`Booked into ${eventName}`, 'success');
+    closeModal();
+    openMemberProfile(memberId);
+  } catch (err) {
+    showToast('Booking failed: ' + err.message, 'error');
+  }
+}
+
+async function cancelEventEnrolment(enrolmentId, eventName) {
+  if (!confirm(`Cancel booking for ${eventName}?`)) return;
+  try {
+    await api('POST', `/api/events/enrolments/${enrolmentId}/cancel`);
+    showToast('Booking cancelled', 'success');
+    if (window._currentProfileMemberId) openMemberProfile(window._currentProfileMemberId);
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
 }
 
 function renderTransactionsTab(transactions) {
@@ -1649,34 +1729,111 @@ async function updateMember(e, memberId) {
 // ============================================================
 
 function showNewMemberModal() {
-  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto';
+  document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-lg w-full mx-4 max-h-[92vh] overflow-y-auto';
 
   showModal(`
     <div class="p-6">
-      <h3 class="text-xl font-bold mb-4">Register New Member</h3>
-      <form id="new-member-form" onsubmit="createMember(event)">
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-group"><label class="form-label">First Name *</label><input type="text" name="first_name" class="form-input" required></div>
-          <div class="form-group"><label class="form-label">Last Name *</label><input type="text" name="last_name" class="form-input" required></div>
-          <div class="form-group"><label class="form-label">Email</label><input type="email" name="email" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Phone</label><input type="tel" name="phone" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Date of Birth</label><input type="date" name="date_of_birth" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Gender</label><select name="gender" class="form-select"><option value="">—</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option><option value="prefer_not_to_say">Prefer not to say</option></select></div>
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <h3 class="text-xl font-bold text-gray-900">New Member</h3>
+          <p class="text-sm text-gray-400 mt-0.5">Quick desk registration</p>
         </div>
-        <div class="form-group"><label class="form-label">Address</label><input type="text" name="address_line1" class="form-input mb-2" placeholder="Address Line 1"><input type="text" name="address_line2" class="form-input mb-2" placeholder="Address Line 2"><div class="grid grid-cols-3 gap-2"><input type="text" name="city" class="form-input" placeholder="City"><input type="text" name="region" class="form-input" placeholder="County"><input type="text" name="postal_code" class="form-input" placeholder="Postcode"></div></div>
-        <div class="grid grid-cols-2 gap-4">
-          <div class="form-group"><label class="form-label">Emergency Contact Name</label><input type="text" name="emergency_contact_name" class="form-input"></div>
-          <div class="form-group"><label class="form-label">Emergency Contact Phone</label><input type="tel" name="emergency_contact_phone" class="form-input"></div>
+        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <form id="new-member-form" onsubmit="createMember(event)" novalidate>
+
+        <!-- Name row -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">First Name <span class="text-red-400">*</span></label>
+            <input type="text" name="first_name" class="form-input" placeholder="Jane" required autofocus>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Last Name <span class="text-red-400">*</span></label>
+            <input type="text" name="last_name" class="form-input" placeholder="Smith" required>
+          </div>
         </div>
-        <div class="form-group"><label class="form-label">Medical Conditions</label><input type="text" name="medical_conditions" class="form-input" placeholder="None, or describe..."></div>
-        <div class="form-group"><label class="form-label">Climbing Experience</label><select name="climbing_experience" class="form-select"><option value="">—</option><option value="new">New Climber</option><option value="few_times">Climbed a few times</option><option value="regular">Regular Climber</option></select></div>
-        <div class="flex justify-end gap-2 mt-6">
-          <button type="button" onclick="closeModal()" class="btn btn-secondary">Cancel</button>
-          <button type="submit" class="btn btn-primary">Register Member</button>
+
+        <!-- Contact row -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Email</label>
+            <input type="email" name="email" class="form-input" placeholder="jane@example.com">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Phone</label>
+            <input type="tel" name="phone" class="form-input" placeholder="07700 900000">
+          </div>
+        </div>
+
+        <!-- DOB + Gender -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Date of Birth</label>
+            <input type="date" name="date_of_birth" class="form-input" onchange="newMemberCheckAge(this)">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Gender</label>
+            <select name="gender" class="form-select">
+              <option value="">—</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+              <option value="prefer_not_to_say">Prefer not to say</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Under-18 warning -->
+        <div id="new-member-minor-warning" class="hidden mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p class="text-sm text-blue-800 font-semibold">Under 18 — minor waiver required</p>
+          <p class="text-xs text-blue-600 mt-0.5">Ensure a parent/guardian completes the minor waiver before climbing.</p>
+        </div>
+
+        <!-- Emergency contact -->
+        <div class="grid grid-cols-2 gap-3 mb-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Emergency Contact</label>
+            <input type="text" name="emergency_contact_name" class="form-input" placeholder="Name">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Emergency Phone</label>
+            <input type="tel" name="emergency_contact_phone" class="form-input" placeholder="07700 900000">
+          </div>
+        </div>
+
+        <!-- Medical -->
+        <div class="mb-4">
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Medical Conditions</label>
+          <input type="text" name="medical_conditions" class="form-input" placeholder="None, or describe...">
+        </div>
+
+        <!-- Waiver note -->
+        <div class="mb-5 p-3 bg-amber-50 border border-amber-200 rounded-lg flex gap-2">
+          <svg class="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          <p class="text-xs text-amber-800">Member will need to complete the waiver and induction video before climbing. You can send them the registration link, or they can use a kiosk tablet.</p>
+        </div>
+
+        <div class="flex gap-2">
+          <button type="button" onclick="closeModal()" class="flex-1 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+          <button type="submit" id="new-member-submit" class="flex-1 py-2.5 bg-[#1E3A5F] text-white rounded-lg text-sm font-semibold hover:bg-[#2A4D7A] transition flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+            Register Member
+          </button>
         </div>
       </form>
     </div>
   `);
+}
+
+function newMemberCheckAge(input) {
+  const dob = new Date(input.value);
+  const age = Math.floor((Date.now() - dob) / (365.25 * 24 * 60 * 60 * 1000));
+  const warning = document.getElementById('new-member-minor-warning');
+  if (warning) warning.classList.toggle('hidden', age >= 18 || isNaN(age));
 }
 
 async function emailMemberQrCode(memberId) {
@@ -1698,25 +1855,59 @@ async function createMember(e) {
   const form = document.getElementById('new-member-form');
   const data = Object.fromEntries(new FormData(form));
 
+  if (!data.first_name?.trim() || !data.last_name?.trim()) {
+    showToast('First and last name are required', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('new-member-submit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Registering...'; }
+
   try {
     const member = await api('POST', '/api/members', data);
-    closeModal();
-    showToast(`${member.first_name} ${member.last_name} registered`, 'success');
+    const fullName = `${member.first_name} ${member.last_name}`;
 
-    if (member.email) {
-      // Send welcome email + QR code
-      api('POST', '/api/email/send-welcome', { member_id: member.id }).catch(() => {});
-      api('POST', `/api/members/${member.id}/send-qr-email`).then(r => {
-        if (r.success) showToast('QR code sent to ' + member.email, 'info');
-      });
-    }
+    // Show post-registration action modal
+    document.getElementById('modal-content').className = 'bg-white rounded-xl shadow-2xl max-w-sm w-full mx-4';
+    document.getElementById('modal-content').innerHTML = `
+      <div class="p-6 text-center">
+        <div class="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
+          <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900">${fullName} registered</h3>
+        <p class="text-sm text-gray-500 mt-1 mb-5">Member ID created. Waiver still needed before climbing.</p>
+        <div class="space-y-2">
+          <button onclick="closeModal(); openMemberProfile('${member.id}')" class="w-full py-2.5 bg-[#1E3A5F] text-white rounded-lg text-sm font-semibold hover:bg-[#2A4D7A] transition">View Profile</button>
+          <button onclick="closeModal(); openPOSForMemberWithPin('${member.id}', '${fullName.replace(/'/g, "\\'")}')" class="w-full py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Open in POS</button>
+          ${member.email ? `<button onclick="newMemberSendPortalLink('${member.id}', '${member.email}')" id="send-portal-btn" class="w-full py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50">Send Registration Link</button>` : ''}
+          <button onclick="closeModal()" class="w-full py-2 text-sm text-gray-400 hover:text-gray-600">Done</button>
+        </div>
+      </div>
+    `;
 
-    if (document.getElementById('page-members').classList.contains('active')) await refreshMembersList();
-    if (document.getElementById('page-dashboard').classList.contains('active')) {
+    // Refresh whichever page is active
+    if (document.getElementById('page-members')?.classList.contains('active')) refreshMembersList().catch(() => {});
+    if (document.getElementById('page-dashboard')?.classList.contains('active')) {
       const q = document.getElementById('dashboard-search')?.value;
-      if (q && q.length >= 3) await dashboardSearch(q);
+      if (q && q.length >= 3) dashboardSearch(q).catch(() => {});
     }
-  } catch (err) { showToast('Error: ' + err.message, 'error'); }
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Register Member'; }
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+async function newMemberSendPortalLink(memberId, email) {
+  const btn = document.getElementById('send-portal-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+  try {
+    await api('POST', `/api/register/send-link`, { member_id: memberId, email });
+    if (btn) { btn.textContent = 'Sent!'; btn.className = btn.className.replace('text-gray-700', 'text-green-600'); }
+    showToast('Registration link sent to ' + email, 'success');
+  } catch (err) {
+    if (btn) { btn.disabled = false; btn.textContent = 'Send Registration Link'; }
+    showToast('Send failed: ' + err.message, 'error');
+  }
 }
 
 // ============================================================

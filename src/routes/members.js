@@ -40,7 +40,14 @@ router.get('/:id', (req, res, next) => {
 });
 
 router.get('/:id/with-pass-status', (req, res, next) => {
-  try { res.json(Member.getWithPassStatus(req.params.id) || null); } catch (e) { next(e); }
+  try {
+    const member = Member.getWithPassStatus(req.params.id);
+    if (!member) return res.json(null);
+    const db = getDb();
+    // "Has App" = has ever successfully logged into the climber portal
+    const hasApp = db.prepare(`SELECT 1 FROM auth_codes WHERE member_id = ? AND used = 1 LIMIT 1`).get(req.params.id);
+    res.json({ ...member, has_app: !!hasApp });
+  } catch (e) { next(e); }
 });
 
 // Staff comments
