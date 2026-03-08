@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head><style>
+body{background:#f0f0f0;font-family:system-ui;display:flex;flex-direction:column;gap:32px;padding:40px;align-items:center}
+.concept{background:white;border-radius:16px;padding:36px 60px;box-shadow:0 2px 20px rgba(0,0,0,0.08);display:flex;flex-direction:column;align-items:center;gap:14px}
+.label{font-size:11px;color:#aaa;letter-spacing:2px;text-transform:uppercase}
+.dark{background:#0f172a}
+</style></head>
+<body>
+
+<div class="concept">
+  <div class="label">Concept 1 — Route Arc</div>
+  <svg width="280" height="80" viewBox="0 0 280 80">
+    <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1E3A5F"/><stop offset="100%" style="stop-color:#2D6ADF"/>
+    </linearGradient></defs>
+    <path d="M20 54 Q140 6 260 54" stroke="url(#g1)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <circle cx="140" cy="15" r="5" fill="#2D6ADF"/>
+    <text x="140" y="76" font-family="Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="26" fill="#1E3A5F" text-anchor="middle" letter-spacing="6">DYNAMIC</text>
+  </svg>
+</div>
+
+<div class="concept">
+  <div class="label">Concept 2 — D Mark</div>
+  <svg width="300" height="80" viewBox="0 0 300 80">
+    <rect x="0" y="8" width="9" height="64" rx="2" fill="#1E3A5F"/>
+    <path d="M9 8 Q74 8 74 40 Q74 72 9 72Z" fill="#1E3A5F"/>
+    <path d="M15 20 Q56 40 15 60Z" fill="white"/>
+    <circle cx="60" cy="40" r="5" fill="#2D6ADF"/>
+    <text x="92" y="51" font-family="Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="30" fill="#1E3A5F" letter-spacing="3">DYNAMIC</text>
+  </svg>
+</div>
+
+<div class="concept">
+  <div class="label">Concept 3 — Chevron Mark</div>
+  <svg width="300" height="80" viewBox="0 0 300 80">
+    <defs><linearGradient id="g3" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1E3A5F"/><stop offset="100%" style="stop-color:#3B82F6"/>
+    </linearGradient></defs>
+    <polygon points="0,70 28,8 56,70 46,70 28,28 10,70" fill="url(#g3)"/>
+    <polygon points="18,70 46,8 74,70 64,70 46,28 28,70" fill="url(#g3)" opacity="0.3"/>
+    <text x="90" y="50" font-family="Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="30" fill="#1E3A5F" letter-spacing="3">DYNAMIC</text>
+    <text x="91" y="68" font-family="Helvetica Neue,Arial,sans-serif" font-weight="400" font-size="10" fill="#7B96B8" letter-spacing="4">GYM MANAGEMENT</text>
+  </svg>
+</div>
+
+<div class="concept dark">
+  <div class="label" style="color:#444">Concept 3 — Dark Mode</div>
+  <svg width="300" height="80" viewBox="0 0 300 80">
+    <defs><linearGradient id="g4" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3B82F6"/><stop offset="100%" style="stop-color:#60A5FA"/>
+    </linearGradient></defs>
+    <polygon points="0,70 28,8 56,70 46,70 28,28 10,70" fill="url(#g4)"/>
+    <polygon points="18,70 46,8 74,70 64,70 46,28 28,70" fill="url(#g4)" opacity="0.3"/>
+    <text x="90" y="50" font-family="Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="30" fill="white" letter-spacing="3">DYNAMIC</text>
+    <text x="91" y="68" font-family="Helvetica Neue,Arial,sans-serif" font-weight="400" font-size="10" fill="#7B96B8" letter-spacing="4">GYM MANAGEMENT</text>
+  </svg>
+</div>
+
+</body></html>

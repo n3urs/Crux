@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head><style>
+body { background: #e8e8e8; font-family: system-ui; display: flex; flex-direction: column; gap: 32px; padding: 40px; align-items: center; }
+.card { border-radius: 20px; padding: 48px 64px; display: flex; flex-direction: column; align-items: center; gap: 20px; box-shadow: 0 4px 40px rgba(0,0,0,0.15); }
+.label { font-size: 10px; color: #666; letter-spacing: 3px; text-transform: uppercase; }
+.dark { background: #0d1424; }
+.light { background: #ffffff; }
+.mid { background: #f8faff; border: 1px solid #e2e8f0; }
+</style></head>
+<body>
+
+<!-- Primary: Dark -->
+<div class="card dark">
+  <div class="label" style="color:#334">Primary — Dark</div>
+  <svg width="320" height="72" viewBox="0 0 320 72" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="chevGrad" x1="0%" y1="100%" x2="60%" y2="0%">
+        <stop offset="0%" style="stop-color:#2563EB"/>
+        <stop offset="100%" style="stop-color:#60A5FA"/>
+      </linearGradient>
+    </defs>
+    <!-- Front chevron -->
+    <polygon points="32,66 56,10 80,66 68,66 56,34 44,66" fill="url(#chevGrad)"/>
+    <!-- Back chevron (offset, dimmer) -->
+    <polygon points="14,66 38,10 62,66 50,66 38,34 26,66" fill="url(#chevGrad)" opacity="0.28"/>
+    <!-- DYNAMIC -->
+    <text x="104" y="46" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="32" fill="white" letter-spacing="1">DYNAMIC</text>
+    <!-- subtitle -->
+    <text x="106" y="63" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-weight="500" font-size="10.5" fill="#6B8CC4" letter-spacing="4.5">GYM MANAGEMENT</text>
+  </svg>
+</div>
+
+<!-- Icon only -->
+<div class="card dark">
+  <div class="label" style="color:#334">Icon Only — App Icon / Favicon</div>
+  <svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <rect width="80" height="80" rx="18" fill="#0d1424"/>
+    <defs>
+      <linearGradient id="iconGrad" x1="0%" y1="100%" x2="60%" y2="0%">
+        <stop offset="0%" style="stop-color:#2563EB"/>
+        <stop offset="100%" style="stop-color:#60A5FA"/>
+      </linearGradient>
+    </defs>
+    <polygon points="40,68 58,16 76,68 66,68 58,38 50,68" fill="url(#iconGrad)"/>
+    <polygon points="24,68 42,16 60,68 50,68 42,38 34,68" fill="url(#iconGrad)" opacity="0.28"/>
+  </svg>
+</div>
+
+<!-- Light version -->
+<div class="card light">
+  <div class="label">Light Background Version</div>
+  <svg width="300" height="68" viewBox="0 0 300 68" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="chevGrad2" x1="0%" y1="100%" x2="60%" y2="0%">
+        <stop offset="0%" style="stop-color:#1E40AF"/>
+        <stop offset="100%" style="stop-color:#3B82F6"/>
+      </linearGradient>
+    </defs>
+    <polygon points="30,62 52,10 74,62 63,62 52,32 41,62" fill="url(#chevGrad2)"/>
+    <polygon points="13,62 35,10 57,62 46,62 35,32 24,62" fill="url(#chevGrad2)" opacity="0.22"/>
+    <text x="96" y="43" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="30" fill="#0f172a" letter-spacing="1">DYNAMIC</text>
+    <text x="98" y="59" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-weight="500" font-size="10" fill="#64748B" letter-spacing="4.5">GYM MANAGEMENT</text>
+  </svg>
+</div>
+
+<!-- Compact — sidebar size -->
+<div class="card dark">
+  <div class="label" style="color:#334">Compact — Sidebar / Nav</div>
+  <svg width="220" height="44" viewBox="0 0 220 44" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="chevGrad3" x1="0%" y1="100%" x2="60%" y2="0%">
+        <stop offset="0%" style="stop-color:#2563EB"/>
+        <stop offset="100%" style="stop-color:#60A5FA"/>
+      </linearGradient>
+    </defs>
+    <polygon points="20,40 34,6 48,40 41,40 34,20 27,40" fill="url(#chevGrad3)"/>
+    <polygon points="9,40 23,6 37,40 30,40 23,20 16,40" fill="url(#chevGrad3)" opacity="0.28"/>
+    <text x="62" y="28" font-family="-apple-system,Helvetica Neue,Arial,sans-serif" font-weight="800" font-size="20" fill="white" letter-spacing="1">DYNAMIC</text>
+  </svg>
+</div>
+
+</body>
+</html>

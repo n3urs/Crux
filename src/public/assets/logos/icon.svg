@@ -1,0 +1,13 @@
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <rect width="80" height="80" rx="18" fill="#0d1424"/>
+  <defs>
+    <linearGradient id="iconGrad" x1="0%" y1="100%" x2="60%" y2="0%">
+      <stop offset="0%" style="stop-color:#2563EB"/>
+      <stop offset="100%" style="stop-color:#60A5FA"/>
+    </linearGradient>
+  </defs>
+  <!-- Back chevron -->
+  <polygon points="24,68 42,16 60,68 50,68 42,38 34,68" fill="url(#iconGrad)" opacity="0.28"/>
+  <!-- Front chevron -->
+  <polygon points="40,68 58,16 76,68 66,68 58,38 50,68" fill="url(#iconGrad)"/>
+</svg>
