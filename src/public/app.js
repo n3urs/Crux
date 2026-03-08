@@ -5011,6 +5011,7 @@ const PASS_CATEGORIES = {
   single_entry: 'Day Entry',
   multi_visit: '10-Visit Pass',
   monthly_pass: 'Monthly Pass',
+  membership_dd: 'Membership (Direct Debit)',
   annual_membership: 'Annual Membership',
   membership: 'Membership',
   staff: 'Staff / Complimentary',
