@@ -195,13 +195,18 @@ POST     /api/pos/transaction
 ## Known Issues / TODO
 
 - [ ] Staff login/roles — full role-based access control not wired to all endpoints yet
-- [ ] Settings page — Analytics page not built
-- [ ] Events page — partially built
-- [ ] Routes page — partially built
 - [ ] GoCardless integration — skeleton only, needs real DD flow
 - [ ] Dojo integration — skeleton only, needs real payment initiation
-- [ ] Email receipts — SMTP configured, not yet triggered from POS
-- [ ] QR code email — configured, test needed
+
+## Completed Features (2026-03-08 session)
+
+- [x] Staff Management — `saveStaff`, `resetStaffPin`, `toggleStaffStatus`, `deleteStaff` all wired, tested
+- [x] Analytics page — KPI cards, Revenue/Check-in bar charts, EOD report, Popular Products, Grade Distribution
+- [x] Events page — List view, Calendar view, Create event modal, event detail, enrol/cancel
+- [x] Routes page — Cards view, Map view, Add Climb modal, Grade Distribution chart, Reset Gym
+- [x] Email QR Code — "Email QR Code" button added to member profile Overview tab action buttons
+- [x] Send Receipt — "Send Receipt" button added to POS success screen (shows for members with email)
+- [x] POS `posSendReceipt()` function added to pos.js (calls POST /api/email/send-receipt)
 
 ---
 
@@ -231,3 +236,11 @@ a62b65a Transactions tab: Beta-style layout, pagination, status badges
 - Tested all 5 Settings tabs visually — all looking good
 - Fixed `PASS_CATEGORIES` map missing `membership_dd` key (was showing raw DB key in UI)
 - Created this DEVELOPMENT.md
+
+### 2026-03-08 (subagent pass)
+- Verified all 6 task areas: Staff, Email, Analytics, Events, Routes — all working
+- Added "Email QR Code" button directly on member profile Overview tab (not just in QR modal)
+- Added "Send Receipt" button in POS success screen for members with email
+- Added `posSendReceipt(transactionId, memberId)` async function in pos.js
+- Full test pass via browser: Dashboard, Events, Routes, Analytics, Settings/Staff all confirmed working
+- No JS console errors on any page
