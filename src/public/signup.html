@@ -234,11 +234,11 @@
       }
     }
 
-    function goStep(n) {
+    async function goStep(n) {
       // Validate current step before advancing
       if (n > currentStep) {
         if (currentStep === 1 && !validateStep1()) return;
-        if (currentStep === 2 && !validateStep2()) return;
+        if (currentStep === 2 && !await validateStep2()) return;
       }
       currentStep = n;
       showStep(n);

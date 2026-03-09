@@ -16,9 +16,33 @@ async function api(method, url, body = null) {
   const res = await fetch(url, opts);
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
+    if (res.status === 402 && err.error === 'subscription_required') {
+      showSubscriptionWall(err.upgradeUrl);
+      throw new Error('subscription_required');
+    }
     throw new Error(err.error || res.statusText);
   }
   return res.json();
+}
+
+function showSubscriptionWall(upgradeUrl) {
+  // Don't double-show
+  if (document.getElementById('subscription-wall')) return;
+  const wall = document.createElement('div');
+  wall.id = 'subscription-wall';
+  wall.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;display:flex;align-items:center;justify-content:center;padding:1rem';
+  wall.innerHTML = `
+    <div style="background:#1e293b;border-radius:1rem;padding:2.5rem;max-width:420px;width:100%;text-align:center;border:1px solid #334155">
+      <div style="width:56px;height:56px;background:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 1.25rem">
+        <svg style="width:28px;height:28px;color:white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      </div>
+      <h2 style="color:#f1f5f9;font-size:1.25rem;font-weight:700;margin:0 0 0.5rem">Subscription Required</h2>
+      <p style="color:#94a3b8;font-size:0.875rem;margin:0 0 1.5rem;line-height:1.6">Your free trial has ended or your subscription is inactive. Reactivate to continue using Crux.</p>
+      <a href="${upgradeUrl || '/billing/create-checkout'}" style="display:inline-block;padding:0.75rem 1.75rem;background:#3b82f6;color:white;font-weight:600;font-size:0.875rem;border-radius:0.5rem;text-decoration:none">Reactivate Subscription</a>
+      <p style="color:#475569;font-size:0.75rem;margin:1rem 0 0">Questions? Email <a href="mailto:hello@cruxgym.co.uk" style="color:#64748b">hello@cruxgym.co.uk</a></p>
+    </div>
+  `;
+  document.body.appendChild(wall);
 }
 
 // ============================================================
