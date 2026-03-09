@@ -4367,6 +4367,7 @@ async function loadStaff() {
       <button onclick="switchSettingsTab('general')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'general' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="general">General</button>
       <button onclick="switchSettingsTab('integrations')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'integrations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="integrations">Integrations</button>
       <button onclick="switchSettingsTab('waivers')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'waivers' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="waivers">Waivers</button>
+      <button onclick="switchSettingsTab('billing')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'billing' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="billing">Billing</button>
     </div>
 
     <div id="settings-tab-staff" class="settings-tab-content ${settingsTab !== 'staff' ? 'hidden' : ''}"></div>
@@ -4375,6 +4376,7 @@ async function loadStaff() {
     <div id="settings-tab-general" class="settings-tab-content ${settingsTab !== 'general' ? 'hidden' : ''}"></div>
     <div id="settings-tab-integrations" class="settings-tab-content ${settingsTab !== 'integrations' ? 'hidden' : ''}"></div>
     <div id="settings-tab-waivers" class="settings-tab-content ${settingsTab !== 'waivers' ? 'hidden' : ''}"></div>
+    <div id="settings-tab-billing" class="settings-tab-content ${settingsTab !== 'billing' ? 'hidden' : ''}"></div>
   `;
 
   loadSettingsTabContent(settingsTab);

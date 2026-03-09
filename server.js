@@ -48,10 +48,25 @@ const authLimiter = rateLimit({
   message: { error: 'Too many attempts, please try again later.' },
 });
 
+// ── Env vars (Stripe billing) ──────────────────────────────────────────────
+// These are loaded from the environment (e.g. /etc/dynamic.env or .env).
+// They can be left empty/placeholder during development.
+//   STRIPE_SECRET_KEY       — Stripe secret key (sk_live_... or sk_test_...)
+//   STRIPE_WEBHOOK_SECRET   — Stripe webhook signing secret (whsec_...)
+//   STRIPE_PRICE_STARTER    — Stripe Price ID for Starter plan
+//   STRIPE_PRICE_GROWTH     — Stripe Price ID for Growth plan
+//   STRIPE_PRICE_SCALE      — Stripe Price ID for Scale plan
+
 // ── Middleware ─────────────────────────────────────────────────────────────
+
+// Webhook route needs raw body — must be registered before express.json()
+app.post('/billing/webhook', express.raw({ type: 'application/json' }), require('./src/routes/billing').webhook);
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// ── Billing routes (platform-level, before gym context) ───────────────────
+app.use('/billing', require('./src/routes/billing').router);
 
 // ── Gym context middleware ─────────────────────────────────────────────────
 // Resolves the active gym_id from the request subdomain and threads it

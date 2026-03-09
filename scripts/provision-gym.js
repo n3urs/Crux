@@ -111,6 +111,27 @@ const Waiver = require('../src/main/models/waiver');
 const { seedProducts } = require('../src/main/models/seed-products');
 const { ensureClimberTables } = require('../src/routes/climber');
 
+// ── Insert billing record into platform.db ─────────────────────────────────
+
+const { getPlatformDb } = require('../src/main/database/platformDb');
+
+try {
+  const platformDb = getPlatformDb();
+  const existing = platformDb.prepare('SELECT gym_id FROM gym_billing WHERE gym_id = ?').get(gymId);
+  if (!existing) {
+    const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+    platformDb.prepare(`
+      INSERT INTO gym_billing (gym_id, plan, status, trial_ends_at)
+      VALUES (?, 'growth', 'trialing', ?)
+    `).run(gymId, trialEndsAt);
+    console.log(`  Billing record created — trialing until ${trialEndsAt.split('T')[0]}`);
+  } else {
+    console.log('  Billing record already exists — skipping.');
+  }
+} catch (e) {
+  console.warn('  Warning: could not write billing record:', e.message);
+}
+
 gymContext.run({ gymId }, () => {
   getDb(); // open connection in context
 

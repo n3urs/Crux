@@ -122,7 +122,7 @@ Needs building for multi-tenancy:
 - [ ] Super-admin panel (Oscar can see all gyms, billing status, usage)
 - [ ] Subdomain routing (gymname.cruxgym.co.uk → correct gym instance)
 - [ ] Billing / subscription management (Stripe integration)
-- [x] Renamed all BoulderRyn references to Crux
+- [x] Renamed all legacy references to Crux
 - [ ] New logo + brand assets
 - [ ] Marketing/landing page (cruxgym.co.uk)
 - [ ] Self-serve signup flow (later)
