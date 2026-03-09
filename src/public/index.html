@@ -112,6 +112,19 @@
       </ul>
     </nav>
 
+    <!-- Onboarding Setup Checklist (shown until dismissed or complete) -->
+    <div id="onboarding-checklist" class="mx-3 mb-3 rounded-xl bg-slate-700/50 border border-slate-600/50 p-3" style="display:none;">
+      <div class="flex items-center justify-between mb-2">
+        <span class="font-semibold text-white text-xs">Get started</span>
+        <span id="onboarding-progress-text" class="text-slate-400 text-xs">0 / 5 done</span>
+      </div>
+      <div class="w-full bg-slate-600 rounded-full h-1 mb-2.5">
+        <div id="onboarding-progress-bar" class="bg-blue-500 h-1 rounded-full transition-all duration-300" style="width:0%"></div>
+      </div>
+      <ul id="onboarding-steps-list" class="space-y-1.5"></ul>
+      <button onclick="dismissOnboarding()" class="mt-2.5 text-slate-500 hover:text-slate-300 text-xs w-full text-center transition">Dismiss</button>
+    </div>
+
     <!-- Footer -->
     <div class="p-4 border-t border-slate-700 text-xs text-slate-500">
       <p id="sidebar-gym-footer">Crux</p>
@@ -140,6 +153,17 @@
 
   <!-- Toast Notifications -->
   <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+
+  <!-- Welcome Modal (first login onboarding) -->
+  <div id="onboarding-welcome-modal" class="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm items-center justify-center" style="display:none;">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 p-7 text-center">
+      <img src="/assets/logos/logo-dark.svg" alt="Crux" class="h-9 mx-auto mb-4">
+      <h2 class="text-xl font-bold text-gray-900 mb-2">Welcome to Crux 👋</h2>
+      <p class="text-gray-500 text-sm mb-6">Let's get your gym set up. It takes about 5 minutes. We'll walk you through the essentials.</p>
+      <button onclick="closeWelcomeModal()" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition mb-2">Let's go →</button>
+      <button onclick="closeWelcomeModal()" class="w-full py-2 text-gray-400 hover:text-gray-600 text-sm transition">I'll explore on my own</button>
+    </div>
+  </div>
 
   <!-- Scripts -->
   <script src="pages/pos.js"></script>

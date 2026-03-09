@@ -4366,6 +4366,7 @@ async function loadStaff() {
       <button onclick="switchSettingsTab('passes')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'passes' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="passes">Pass Types</button>
       <button onclick="switchSettingsTab('general')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'general' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="general">General</button>
       <button onclick="switchSettingsTab('integrations')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'integrations' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="integrations">Integrations</button>
+      <button onclick="switchSettingsTab('waivers')" class="settings-tab px-5 py-3 text-sm font-medium border-b-2 ${settingsTab === 'waivers' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}" data-stab="waivers">Waivers</button>
     </div>
 
     <div id="settings-tab-staff" class="settings-tab-content ${settingsTab !== 'staff' ? 'hidden' : ''}"></div>
@@ -4373,6 +4374,7 @@ async function loadStaff() {
     <div id="settings-tab-passes" class="settings-tab-content ${settingsTab !== 'passes' ? 'hidden' : ''}"></div>
     <div id="settings-tab-general" class="settings-tab-content ${settingsTab !== 'general' ? 'hidden' : ''}"></div>
     <div id="settings-tab-integrations" class="settings-tab-content ${settingsTab !== 'integrations' ? 'hidden' : ''}"></div>
+    <div id="settings-tab-waivers" class="settings-tab-content ${settingsTab !== 'waivers' ? 'hidden' : ''}"></div>
   `;
 
   loadSettingsTabContent(settingsTab);
@@ -4503,6 +4505,7 @@ async function loadSettingsTabContent(tab) {
     case 'passes': return loadPassTypeSettings();
     case 'general': return loadGeneralSettings();
     case 'integrations': return loadIntegrationSettings();
+    case 'waivers': return loadWaiverSettings();
   }
 }
 
@@ -5182,6 +5185,236 @@ async function togglePassTypeActive(passTypeId, active) {
   } catch (err) { showToast('Error: ' + err.message, 'error'); }
 }
 
+// ---- Waivers Tab ----
+
+async function loadWaiverSettings() {
+  const container = document.getElementById('settings-tab-waivers');
+  container.innerHTML = '<p class="text-gray-400 text-center py-8">Loading waiver templates...</p>';
+
+  try {
+    const templates = await api('GET', '/api/waivers/templates');
+    const adult = templates.find(t => t.type === 'adult' && t.is_active) || templates.find(t => t.type === 'adult');
+    const minor = templates.find(t => t.type === 'minor' && t.is_active) || templates.find(t => t.type === 'minor');
+
+    if (!adult && !minor) {
+      container.innerHTML = '<p class="text-gray-400 text-center py-8">No waiver templates found. Seed defaults first.</p>';
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="max-w-3xl space-y-6">
+        ${adult ? renderWaiverTemplateEditor(adult) : ''}
+        ${minor ? renderWaiverTemplateEditor(minor) : ''}
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p class="text-red-400 text-center py-8">Error loading waivers: ${err.message}</p>`;
+  }
+}
+
+function renderWaiverTemplateEditor(template) {
+  const content = template.content || (template.content_json ? JSON.parse(template.content_json) : {});
+  const sections = content.sections || [];
+  const typeLabel = template.type === 'adult' ? 'Adult Waiver' : 'Minor Waiver';
+
+  const sectionsHtml = sections.map((sec, i) => {
+    const sectionContent = sec.content || (sec.subsections ? sec.subsections.join('\n') : '');
+    return `
+      <div class="waiver-section-row border border-gray-200 rounded-xl p-4 bg-gray-50" data-idx="${i}">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-xs font-bold text-gray-400 uppercase tracking-wide flex-1">Section ${i + 1}</span>
+          <div class="flex gap-1">
+            <button type="button" onclick="moveWaiverSection('${template.id}', ${i}, -1)" title="Move up"
+              class="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-gray-700 transition border border-transparent hover:border-gray-200">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+            </button>
+            <button type="button" onclick="moveWaiverSection('${template.id}', ${i}, 1)" title="Move down"
+              class="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-gray-700 transition border border-transparent hover:border-gray-200">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+            <button type="button" onclick="deleteWaiverSection('${template.id}', ${i})" title="Delete section"
+              class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition border border-transparent hover:border-red-200">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="space-y-2">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
+            <input type="text" class="form-input section-title" value="${escapeHtml(sec.title || '')}" placeholder="Section title">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Content</label>
+            <textarea class="form-input section-content" rows="6" placeholder="Section content...">${escapeHtml(sectionContent)}</textarea>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="bg-white border border-gray-200 rounded-xl p-5" id="waiver-editor-${template.id}" data-content-json="${escapeHtml(JSON.stringify(content))}">
+      <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${template.type === 'adult' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}">${template.type}</span>
+        ${typeLabel}
+      </h3>
+
+      <!-- Template metadata -->
+      <div class="grid grid-cols-1 gap-4 mb-5 p-4 bg-gray-50 rounded-xl border border-gray-200">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Template Name</label>
+            <input type="text" id="waiver-name-${template.id}" class="form-input" value="${escapeHtml(template.name || '')}">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Expiry (days)</label>
+            <input type="number" id="waiver-expiry-${template.id}" class="form-input" value="${template.expires_after_days || 365}" min="1">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Induction Video URL</label>
+          <input type="url" id="waiver-video-${template.id}" class="form-input" value="${escapeHtml(template.video_url || '')}" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+      </div>
+
+      <!-- Sections editor -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-3">
+          <h4 class="text-sm font-semibold text-gray-700">Waiver Sections</h4>
+          <span class="text-xs text-gray-400">These sections are displayed to climbers on the registration page</span>
+        </div>
+        <div id="waiver-sections-${template.id}" class="space-y-3">
+          ${sectionsHtml}
+        </div>
+        <button type="button" onclick="addWaiverSection('${template.id}')"
+          class="mt-3 w-full py-2 border-2 border-dashed border-gray-300 hover:border-blue-400 text-gray-500 hover:text-blue-600 rounded-xl text-sm font-medium transition">
+          + Add Section
+        </button>
+      </div>
+
+      <div class="flex justify-end">
+        <button onclick="saveWaiverTemplate('${template.id}')"
+          class="px-6 py-2.5 bg-[#1E3A5F] hover:bg-[#2A4D7A] text-white font-medium rounded-lg transition text-sm">
+          Save Waiver
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getWaiverSectionsFromDom(templateId) {
+  const container = document.getElementById(`waiver-sections-${templateId}`);
+  if (!container) return [];
+  return Array.from(container.querySelectorAll('.waiver-section-row')).map(row => ({
+    title: row.querySelector('.section-title').value.trim(),
+    content: row.querySelector('.section-content').value.trim(),
+  }));
+}
+
+async function saveWaiverTemplate(templateId) {
+  const name = document.getElementById(`waiver-name-${templateId}`)?.value?.trim();
+  const video_url = document.getElementById(`waiver-video-${templateId}`)?.value?.trim();
+  const expires_after_days = parseInt(document.getElementById(`waiver-expiry-${templateId}`)?.value) || 365;
+  const sections = getWaiverSectionsFromDom(templateId);
+
+  // Preserve non-sections fields from the stored content_json
+  let existingContent = {};
+  try {
+    const editorEl = document.getElementById(`waiver-editor-${templateId}`);
+    if (editorEl && editorEl.dataset.contentJson) {
+      existingContent = JSON.parse(editorEl.dataset.contentJson);
+    }
+  } catch (e) {}
+
+  const content_json = { ...existingContent, sections };
+
+  try {
+    await api('PUT', `/api/waivers/templates/${templateId}`, {
+      name,
+      video_url,
+      expires_after_days,
+      content_json,
+    });
+    showToast('Waiver template saved', 'success');
+  } catch (err) {
+    showToast('Error saving waiver: ' + err.message, 'error');
+  }
+}
+
+function addWaiverSection(templateId) {
+  const container = document.getElementById(`waiver-sections-${templateId}`);
+  if (!container) return;
+  const i = container.querySelectorAll('.waiver-section-row').length;
+  const div = document.createElement('div');
+  div.className = 'waiver-section-row border border-gray-200 rounded-xl p-4 bg-gray-50';
+  div.dataset.idx = i;
+  div.innerHTML = `
+    <div class="flex items-center gap-2 mb-3">
+      <span class="text-xs font-bold text-gray-400 uppercase tracking-wide flex-1">Section ${i + 1}</span>
+      <div class="flex gap-1">
+        <button type="button" onclick="moveWaiverSection('${templateId}', ${i}, -1)" title="Move up"
+          class="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-gray-700 transition border border-transparent hover:border-gray-200">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+        </button>
+        <button type="button" onclick="moveWaiverSection('${templateId}', ${i}, 1)" title="Move down"
+          class="p-1.5 rounded-lg hover:bg-white text-gray-400 hover:text-gray-700 transition border border-transparent hover:border-gray-200">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </button>
+        <button type="button" onclick="deleteWaiverSection('${templateId}', ${i})" title="Delete section"
+          class="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition border border-transparent hover:border-red-200">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="space-y-2">
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Title</label>
+        <input type="text" class="form-input section-title" value="" placeholder="Section title">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-gray-500 uppercase mb-1">Content</label>
+        <textarea class="form-input section-content" rows="6" placeholder="Section content..."></textarea>
+      </div>
+    </div>
+  `;
+  container.appendChild(div);
+  renumberWaiverSections(container);
+}
+
+function deleteWaiverSection(templateId, idx) {
+  const container = document.getElementById(`waiver-sections-${templateId}`);
+  if (!container) return;
+  const rows = container.querySelectorAll('.waiver-section-row');
+  if (rows[idx]) rows[idx].remove();
+  renumberWaiverSections(container);
+}
+
+function moveWaiverSection(templateId, idx, direction) {
+  const container = document.getElementById(`waiver-sections-${templateId}`);
+  if (!container) return;
+  const rows = Array.from(container.querySelectorAll('.waiver-section-row'));
+  const newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= rows.length) return;
+  if (direction === -1) {
+    container.insertBefore(rows[idx], rows[newIdx]);
+  } else {
+    container.insertBefore(rows[newIdx], rows[idx]);
+  }
+  renumberWaiverSections(container);
+}
+
+function renumberWaiverSections(container) {
+  container.querySelectorAll('.waiver-section-row').forEach((row, i) => {
+    row.dataset.idx = i;
+    const label = row.querySelector('span.text-xs.font-bold');
+    if (label) label.textContent = `Section ${i + 1}`;
+  });
+}
+
 async function loadGeneralSettings() {
   const container = document.getElementById('settings-tab-general');
   container.innerHTML = '<p class="text-gray-400 text-center py-8">Loading settings...</p>';
@@ -5512,3 +5745,134 @@ window.gymName = 'Crux';
 // Init — no login required, check first run then load dashboard
 checkFirstRun();
 loadPage('dashboard');
+
+// ============================================================
+// Onboarding Setup Wizard
+// ============================================================
+
+/**
+ * Navigate to the Settings page (requires PIN) and open a specific tab.
+ */
+function navigateToSettings(tab) {
+  settingsTab = tab;
+  navigateTo('staff');
+}
+
+/**
+ * Fetch onboarding status and render the sidebar checklist.
+ * Also shows the welcome modal on first-ever page load if no steps are done.
+ */
+async function loadOnboardingStatus() {
+  try {
+    const status = await api('GET', '/api/onboarding/status');
+
+    renderOnboardingChecklist(status);
+
+    // Welcome modal: show once per session if 0 steps done and not yet dismissed
+    if (!status.complete && !sessionStorage.getItem('crux_welcome_shown')) {
+      const completedCount = Object.values(status.steps).filter(Boolean).length;
+      if (completedCount === 0) {
+        showWelcomeModal();
+      }
+    }
+  } catch (e) {
+    // Onboarding check is non-critical — silently ignore errors
+  }
+}
+
+/**
+ * Render the sidebar "Get started" checklist based on onboarding status.
+ */
+function renderOnboardingChecklist(status) {
+  const el = document.getElementById('onboarding-checklist');
+  if (!el) return;
+
+  if (!status || status.complete) {
+    el.style.display = 'none';
+    return;
+  }
+
+  el.style.display = 'block';
+
+  const stepDefs = [
+    { key: 'gym_details', label: 'Set your gym name & details', tab: 'general' },
+    { key: 'waiver',      label: 'Configure your waiver',       tab: 'waivers' },
+    { key: 'pass_types',  label: 'Set up pass types',           tab: 'passes'  },
+    { key: 'staff',       label: 'Add a staff member',          tab: 'staff'   },
+  ];
+
+  const completedCount = stepDefs.filter(s => status.steps[s.key]).length;
+  const allStepsDone = completedCount === stepDefs.length;
+  const totalDone = allStepsDone ? 5 : completedCount;
+
+  const progressText = document.getElementById('onboarding-progress-text');
+  if (progressText) progressText.textContent = `${totalDone} / 5 done`;
+
+  const progressBar = document.getElementById('onboarding-progress-bar');
+  if (progressBar) progressBar.style.width = ((totalDone / 5) * 100) + '%';
+
+  const list = document.getElementById('onboarding-steps-list');
+  if (!list) return;
+
+  const stepItems = stepDefs.map(step => {
+    const done = !!status.steps[step.key];
+    return `
+      <li>
+        <button onclick="navigateToSettings('${step.tab}')"
+                class="flex items-center gap-2 w-full text-left hover:text-white transition ${done ? 'text-slate-500' : 'text-slate-200'}">
+          <span class="flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center
+                       ${done ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-500'}">
+            ${done ? '<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+          </span>
+          <span class="text-xs ${done ? 'line-through opacity-50' : ''}">${step.label}</span>
+        </button>
+      </li>`;
+  }).join('');
+
+  // 5th item: "You're ready!" — auto-completes when all 4 steps done
+  const readyItem = `
+    <li>
+      <div class="flex items-center gap-2 ${allStepsDone ? 'text-slate-200' : 'text-slate-600'}">
+        <span class="flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center
+                     ${allStepsDone ? 'bg-blue-500 border-blue-500 text-white' : 'border-slate-600'}">
+          ${allStepsDone ? '<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>' : ''}
+        </span>
+        <span class="text-xs">You're ready!</span>
+      </div>
+    </li>`;
+
+  list.innerHTML = stepItems + readyItem;
+}
+
+/**
+ * Dismiss the onboarding checklist permanently.
+ */
+async function dismissOnboarding() {
+  try {
+    await api('POST', '/api/onboarding/dismiss');
+    const el = document.getElementById('onboarding-checklist');
+    if (el) el.style.display = 'none';
+  } catch (e) {
+    // ignore
+  }
+}
+
+/**
+ * Show the first-login welcome modal (once per session).
+ */
+function showWelcomeModal() {
+  sessionStorage.setItem('crux_welcome_shown', '1');
+  const el = document.getElementById('onboarding-welcome-modal');
+  if (el) el.style.display = 'flex';
+}
+
+/**
+ * Close the welcome modal.
+ */
+function closeWelcomeModal() {
+  const el = document.getElementById('onboarding-welcome-modal');
+  if (el) el.style.display = 'none';
+}
+
+// Load onboarding status on startup (non-blocking)
+loadOnboardingStatus();

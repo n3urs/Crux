@@ -49,6 +49,26 @@ router.get('/expiring-soon', (req, res, next) => {
   try { res.json(Waiver.getExpiringSoon(parseInt(req.query.days) || 30)); } catch (e) { next(e); }
 });
 
+router.put('/templates/:id', (req, res, next) => {
+  try {
+    const db = getDb();
+    const { name, video_url, expires_after_days, content_json } = req.body;
+    db.prepare(`
+      UPDATE waiver_templates
+      SET name = @name, video_url = @video_url, expires_after_days = @expires_after_days,
+          content_json = @content_json, updated_at = datetime('now')
+      WHERE id = @id
+    `).run({
+      id: req.params.id,
+      name,
+      video_url,
+      expires_after_days: parseInt(expires_after_days) || 365,
+      content_json: typeof content_json === 'string' ? content_json : JSON.stringify(content_json),
+    });
+    res.json(Waiver.getTemplateById(req.params.id));
+  } catch (e) { next(e); }
+});
+
 router.post('/seed-defaults', (req, res, next) => {
   try { res.json({ count: Waiver.seedDefaults() }); } catch (e) { next(e); }
 });

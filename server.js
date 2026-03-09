@@ -119,6 +119,7 @@ app.use('/api/analytics', require('./src/routes/analytics'));
 app.use('/api/staff', require('./src/routes/staff'));
 app.use('/api/email', require('./src/routes/email'));
 app.use('/api/settings', require('./src/routes/settings'));
+app.use('/api/onboarding', require('./src/routes/onboarding'));
 app.use('/api/stats', require('./src/routes/stats'));
 app.use('/api', require('./src/routes/register'));
 app.use('/api/dojo', require('./src/routes/dojo'));
