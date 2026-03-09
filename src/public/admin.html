@@ -101,8 +101,8 @@
 
     /* GYM CARDS */
     .gyms-list { display: flex; flex-direction: column; gap: 0.75rem; animation: fadeIn 0.4s ease 0.3s both; }
-    .gym-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; display: grid; grid-template-columns: 130px 1fr auto; gap: 1.5rem; align-items: center; transition: border-color 0.2s, box-shadow 0.2s; }
-    @media (max-width: 900px) { .gym-card { grid-template-columns: 1fr; } }
+    .gym-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem 1.5rem; display: grid; grid-template-columns: 130px 1fr; gap: 1.5rem; align-items: start; transition: border-color 0.2s, box-shadow 0.2s; }
+    @media (max-width: 700px) { .gym-card { grid-template-columns: 1fr; } }
     .gym-card:hover { border-color: rgba(0,194,255,0.35); box-shadow: 0 0 20px rgba(0,194,255,0.05); }
     .gym-id { font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--blue); font-weight: 700; }
     .gym-name { font-size: 1rem; font-weight: 600; color: var(--text-bright); margin-bottom: 0.4rem; }
@@ -167,6 +167,26 @@
       <div class="stat-card"><div class="stat-label">Trialing</div><div class="stat-value" id="stat-trialing">—</div></div>
       <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value red" id="stat-suspended">—</div></div>
       <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value gold" id="stat-revenue">—</div></div>
+    </div>
+
+    <!-- Platform Links -->
+    <div class="section-header">
+      <div class="section-title">Platform</div>
+      <div class="section-line"></div>
+    </div>
+    <div class="provision-panel" style="margin-bottom:2rem">
+      <div style="margin-bottom:0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:2px;color:var(--text);text-transform:uppercase">Marketing Site</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:1.25rem">
+        <a href="https://cruxgym.co.uk" target="_blank" class="btn-link">Home ↗</a>
+        <a href="https://cruxgym.co.uk/features" target="_blank" class="btn-link">Features ↗</a>
+        <a href="https://cruxgym.co.uk/pricing" target="_blank" class="btn-link">Pricing ↗</a>
+        <a href="https://cruxgym.co.uk/contact" target="_blank" class="btn-link">Contact ↗</a>
+      </div>
+      <div style="margin-bottom:0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:2px;color:var(--text);text-transform:uppercase">Platform Pages</div>
+      <div style="display:flex;flex-wrap:wrap;gap:0.5rem">
+        <a href="https://cruxgym.co.uk/signup" target="_blank" class="btn-link gold">Gym Signup ↗</a>
+        <a href="/admin" target="_blank" class="btn-link">Super Admin ↗</a>
+      </div>
     </div>
 
     <!-- Deploy -->
@@ -277,23 +297,25 @@ async function loadGyms() {
         <div class="gym-id">${g.gymId}</div>
         <div>
           <div class="gym-name">${g.gymName}</div>
-          <div class="gym-meta">
+          <div class="gym-meta" style="margin-bottom:0.75rem">
             <span class="badge badge-${g.status}">${g.status}</span>
             <span class="gym-meta-item">${g.plan}</span>
             <span class="gym-meta-item">${g.memberCount} members</span>
             <span class="gym-meta-item">${lastActivity}</span>
             ${trialInfo ? '<span class="gym-meta-item" style="color:var(--gold)">' + trialInfo + '</span>' : ''}
           </div>
-        </div>
-        <div class="gym-actions">
-          <a href="${base}" target="_blank" class="btn-link">Staff App ↗</a>
-          <a href="${base}/me" target="_blank" class="btn-link gold">Member Portal ↗</a>
-          <a href="${base}/register" target="_blank" class="btn-link green">Register ↗</a>
-          <a href="${base}/admin" target="_blank" class="btn-link">Admin ↗</a>
-          <div class="divider"></div>
-          ${g.status === 'suspended'
-            ? '<button class="btn-succeed" onclick="activateGym(\'' + g.gymId + '\')">Activate</button>'
-            : '<button class="btn-danger" onclick="suspendGym(\'' + g.gymId + '\')">Suspend</button>'}
+          <div class="gym-actions" style="justify-content:flex-start">
+            <a href="${base}" target="_blank" class="btn-link">Staff App ↗</a>
+            <a href="${base}/me" target="_blank" class="btn-link gold">Member Portal ↗</a>
+            <a href="${base}/register" target="_blank" class="btn-link green">Register ↗</a>
+            <a href="${base}/invite" target="_blank" class="btn-link">Staff Invite ↗</a>
+            <a href="${base}/privacy" target="_blank" class="btn-link">Privacy ↗</a>
+            <a href="${base}/admin" target="_blank" class="btn-link">Admin ↗</a>
+            <div class="divider"></div>
+            ${g.status === 'suspended'
+              ? '<button class="btn-succeed" onclick="activateGym(\'' + g.gymId + '\')">Activate</button>'
+              : '<button class="btn-danger" onclick="suspendGym(\'' + g.gymId + '\')">Suspend</button>'}
+          </div>
         </div>
       </div>`;
     }).join('');
