@@ -505,3 +505,88 @@ sudo systemctl reload nginx
 # Cloudflare tunnel (for testing)
 /usr/local/bin/cloudflared tunnel --url http://localhost:8080
 ```
+
+---
+
+## Road to Launch — Big Picture
+
+The roadmap above covers the technical build. This section covers everything else needed to go from "feature complete" to "live product with paying customers".
+
+---
+
+### STAGE 1 — Feature Complete ← we are roughly here
+- All 7 priority items in the roadmap above done
+- Full end-to-end trial run completed (provision test gym → setup wizard → members → payments → emails → member portal)
+- No critical bugs or broken flows
+
+---
+
+### STAGE 2 — Legal & Compliance (do in parallel with tech build)
+
+These are non-negotiable before taking real customer money in the UK.
+
+- [ ] **Privacy Policy** — add `/privacy` page to cruxgym.co.uk (what data you collect, how it's stored, UK GDPR compliant)
+- [ ] **Terms of Service** — add `/terms` page (subscription terms, cancellation, liability, acceptable use)
+- [ ] **Data Processing Agreement (DPA)** — gyms are processing their members' personal data on your platform; you need a DPA they accept during signup
+- [ ] **Cookie policy** — basic, just document what cookies the app sets
+- [ ] **ICO registration** — required in the UK if you're processing personal data commercially (£40/year, done online at ico.org.uk)
+- [ ] **Business entity** — are you trading as a sole trader or limited company? Affects Stripe, invoicing, and liability
+- [ ] **VAT** — not required until £90k turnover but worth knowing the threshold
+
+---
+
+### STAGE 3 — Pre-Launch Testing
+
+- [ ] Full end-to-end trial: sign up as a fake gym owner → complete setup wizard → add staff → invite them → register a member (waiver) → check them in → POS transaction → check all emails sent correctly → view member portal
+- [ ] Test Stripe checkout: use test card `4242 4242 4242 4242` through the full signup flow
+- [ ] Test trial expiry: fast-forward a gym's trial end date in the DB and confirm the billing gate activates correctly
+- [ ] Test on mobile: staff app on a phone, member portal on a phone, registration form on a phone
+- [ ] Test the member portal PWA install on iOS and Android
+- [ ] Basic security review: check all admin/staff routes reject unauthenticated requests, no sensitive data in public routes
+
+---
+
+### STAGE 4 — Soft Launch (Beta — 1-2 real gyms, free or heavily discounted)
+
+The goal is real-world validation before charging full price.
+
+- [ ] Identify 1-2 UK climbing gyms willing to beta test (BoulderRyn is the obvious first candidate — Oscar works there)
+- [ ] Provision their gym, walk them through setup in person or on a call
+- [ ] Collect feedback: what's confusing, what's missing, what's broken
+- [ ] Fix critical issues before wider launch
+- [ ] Get a testimonial / case study if it goes well
+
+---
+
+### STAGE 5 — Go-To-Market
+
+- [ ] **Pricing page CTA works end-to-end** — "Start Free Trial" on cruxgym.co.uk goes to `/signup`, completes, gym is live
+- [ ] **Demo/sales flow** — can Oscar give a live demo to a gym owner? Script out a 10-minute walkthrough
+- [ ] **Support plan** — how do gyms get help? Minimum: hello@cruxgym.co.uk + a basic help doc or FAQ
+- [ ] **Outreach list** — identify UK bouldering/climbing gyms to contact (Moon Climbing, Boulder Brighton, etc.)
+- [ ] **LinkedIn/Instagram presence** — optional but helps with credibility when gyms look you up
+
+---
+
+### STAGE 6 — Public Launch
+
+- [ ] Remove "coming soon" banners from cruxgym.co.uk
+- [ ] Signup flow live and tested
+- [ ] First paying customer onboarded
+- [ ] Monitoring active (uptime alerts, DB backups)
+- [ ] Oscar can log into super-admin and see real data
+
+---
+
+### Where we are right now
+
+```
+[Stage 1: Feature Complete] ████████░░  ~80% — member portal + integration left
+[Stage 2: Legal]            ░░░░░░░░░░  ~0%  — not started
+[Stage 3: Testing]          ░░░░░░░░░░  ~0%  — not started
+[Stage 4: Beta]             ░░░░░░░░░░  ~0%  — not started
+[Stage 5: Go-To-Market]     ░░░░░░░░░░  ~0%  — not started
+[Stage 6: Launch]           ░░░░░░░░░░  ~0%  — not started
+```
+
+Realistically: finish the tech (4-6 more Claude Code sessions), then legal (1-2 weeks parallel), then beta (2-4 weeks), then launch.
