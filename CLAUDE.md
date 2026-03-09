@@ -22,7 +22,7 @@ Crux is a **multi-tenant SaaS platform** for climbing and bouldering gyms. Gyms 
 - **Auth:** JWT for staff sessions, PIN-based login for staff at the desk
 - **Email:** Nodemailer via Gmail SMTP (`cruxgymhq@gmail.com`)
 - **Payments (member-facing):** GoCardless (direct debit) + Dojo (in-person card) — placeholders/partial
-- **Payments (platform billing):** Stripe — installed, routes built, needs real API keys
+- **Payments (platform billing):** Stripe — live with real API keys, checkout + webhook handler active
 - **Hosting:** AWS EC2 (eu-west-1), served via nginx
 
 ---
@@ -48,7 +48,7 @@ boulderryn-project/          ← repo root (yes, old name, rename is pending)
 │   │       └── welcomeEmail.js  ← new gym onboarding email
 │   ├── middleware/
 │   │   ├── requireAdmin.js      ← ADMIN_TOKEN check for /admin routes
-│   │   └── requireBilling.js    ← subscription check (NOT wired in yet)
+│   │   └── requireBilling.js    ← subscription check (wired into all /api routes)
 │   ├── routes/
 │   │   ├── admin.js             ← super-admin panel API
 │   │   ├── billing.js           ← Stripe billing routes
@@ -138,17 +138,20 @@ node scripts/provision-gym.js mygym "My Gym Name"
 
 ### Platform / SaaS features
 - ✅ Multi-tenancy — per-gym isolated SQLite DBs
-- ✅ Subdomain routing (`gymname.cruxgym.co.uk → gym_id`)
-- ✅ Waiver editor — gym owners can edit their own waiver text, sections, video URL (Settings → Waivers)
-- ✅ Onboarding wizard — welcome modal + sidebar checklist on first login
-- ✅ Stripe billing infrastructure — plans, checkout, portal, webhook handler, Billing tab in Settings
-- ✅ Super-admin panel — `/admin` with gym list, provision form, suspend/activate
-- ✅ Welcome email — sent to new gym owners on provisioning (subdomain URL, trial info, next steps)
+- ✅ Subdomain routing (`gymname.cruxgym.co.uk → gym_id`) — Cloudflare wildcard DNS + nginx configured
+- ✅ Waiver editor — gym owners build their own waiver sections, video URL (Settings → Waivers)
+- ✅ Setup wizard — 5-step forced setup on first login (gym details, induction video, waiver builder, gym map, pass types)
+- ✅ Gym map builder — draw walls as polylines on a top-down floor plan, rooms as named groups; Settings → Gym Map for post-setup edits
+- ✅ Blank-slate provisioning — no default products/passes/waiver content; everything configured by the gym owner
+- ✅ Stripe billing — live keys, plans, checkout, portal, webhook handler, Billing tab in Settings
+- ✅ Billing gate UI — 402 responses show a full-screen subscription wall with reactivate button
 - ✅ `requireBilling` middleware — wired into all `/api` routes (exempts `/staff/auth`, `/climber/auth`, `/gym-info`)
-- ✅ Self-serve signup — `/signup` page with gym name, subdomain picker, plan selection → Stripe checkout
+- ✅ Super-admin panel — `/admin` with gym list, provision form, suspend/activate
+- ✅ Welcome email — sent to new gym owners on provisioning
+- ✅ Self-serve signup — `/signup` page with gym name, subdomain picker, plan selection → Stripe checkout → auto-provision
 - ✅ Logo upload — Settings → General, stored as base64, shown in sidebar
 - ✅ GDPR data export — Settings → General, `/api/export/gdpr` (JSON) + `/api/export/members.csv`
-- ✅ systemd service file — `crux-app.service` in repo root, ready to deploy to `/etc/systemd/system/`
+- ✅ systemd service — running on EC2 as `crux-app.service`
 
 ---
 
@@ -188,75 +191,36 @@ Sidebar only shows permitted nav items based on role.
 
 ---
 
-## What Still Needs Doing (Priority Order)
+## What Still Needs Doing
 
-### 1. Real Stripe keys (BLOCKER for end-to-end testing)
-Oscar needs to:
-1. Create a Stripe account at stripe.com
-2. Create 3 products/prices (Starter £59/mo, Growth £99/mo, Scale £149/mo)
-3. Set env vars: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_GROWTH`, `STRIPE_PRICE_SCALE`
-4. Configure Stripe webhook endpoint: `https://cruxgym.co.uk/billing/webhook`
-
-**Until then:** signup + billing works in mock mode (no Stripe redirect, gym provisioned instantly).
-
-### 2. Wildcard DNS for subdomains
-Currently `*.cruxgym.co.uk` doesn't point anywhere. Need:
-- Cloudflare: add `A` record `*` → `52.51.136.243` (proxied)
-- nginx: two server blocks — one for marketing site (apex), one for app (subdomains)
-
-```nginx
-# Subdomains → Express app
-server {
-    listen 80;
-    server_name ~^(?<subdomain>.+)\.cruxgym\.co\.uk$;
-    location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-
-# Apex → marketing site
-server {
-    listen 80;
-    server_name cruxgym.co.uk www.cruxgym.co.uk;
-    root /var/www/cruxgym;
-    index index.html;
-    location / { try_files $uri $uri/ =404; }
-    # Signup page proxied to app
-    location /signup { proxy_pass http://127.0.0.1:8080; proxy_set_header Host $host; }
-}
-```
-
-### 3. JWT_SECRET in production
-Set `JWT_SECRET` in `/etc/crux.env`. Also ensure `ADMIN_TOKEN` is a real secret, not the placeholder.
-
-### 4. Deploy systemd service
+### 1. Reset test on existing gyms
+Existing gyms provisioned before the setup wizard won't have `setup_complete` set. To trigger the wizard on an existing gym:
 ```bash
-sudo cp crux-app.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable crux-app
-sudo systemctl start crux-app
-sudo systemctl status crux-app
+sqlite3 data/gyms/{gym_id}/gym.db "UPDATE settings SET value='0' WHERE key='setup_complete';"
 ```
 
-### 5. Test the full end-to-end flow
-1. Visit `cruxgym.co.uk/signup` (or `localhost:PORT/signup` locally)
-2. Fill in gym details → sign up (mock mode skips Stripe)
-3. Go to `gymid.cruxgym.co.uk` → complete onboarding wizard
-4. Set up staff, pass types, products
-5. Test member registration + waiver + check-in + POS
-6. Once Stripe keys are live: test billing upgrade + portal
+### 2. Resetting for local dev/testing
+```bash
+sqlite3 data/gyms/mygym/gym.db "DELETE FROM staff; UPDATE settings SET value='0' WHERE key='setup_complete';"
+DEFAULT_GYM_ID=mygym PORT=8080 node server.js
+```
+
+### 3. Potential future features
+- Member-facing app (`app.html`) — logbook, booking, profile
+- GoCardless direct debit integration (member-facing recurring payments)
+- Push notifications / email reminders for expiring passes
+- Multi-location support (one gym, multiple sites)
+- Bulk member import (CSV upload)
 
 ---
 
 ## Known Issues / Technical Debt
 
-- `server.js` has a UNIQUE constraint error on first startup sometimes — related to waiver template seeding attempting duplicates. Usually harmless but worth investigating.
-- The `requireBilling` middleware treats missing billing records as "trialing + active" — correct for now but will need tightening once real Stripe is live.
+- `server.js` has a UNIQUE constraint error on first startup sometimes — related to waiver template seeding. Usually harmless.
+- The `requireBilling` middleware treats missing billing records as "trialing + active" — correct for now.
 - Staff PIN login uses a simple hash — fine for now, consider bcrypt for production.
 - The `boulderryn-project` folder and GitHub repo should be renamed to `crux` or `cruxgym`.
-- Git committer identity shows EC2 default user — run `git config --global user.name "Oscar Sullivan"` and `git config --global user.email "oscar@sullivanltd.co.uk"`.
+- YouTube embeds use `youtube-nocookie.com` with `referrerpolicy="origin"` — works on live domain, may have issues on localhost with some ad blockers.
 
 ---
 
