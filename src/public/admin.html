@@ -191,6 +191,10 @@
       <div id="me-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">
         <span style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text)">Loading...</span>
       </div>
+      <div style="margin-top:1rem;margin-bottom:0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:2px;color:var(--text);text-transform:uppercase">Staff Login (pick a gym)</div>
+      <div id="staff-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text)">Loading...</span>
+      </div>
     </div>
 
     <!-- Deploy -->
@@ -301,6 +305,12 @@ async function loadGyms() {
         `<a href="https://${g.gymId}.cruxgym.co.uk/me" target="_blank" class="btn-link gold">${g.gymName} ↗</a>`
       ).join('');
     }
+    const staffLinks = document.getElementById('staff-links');
+    if (staffLinks) {
+      staffLinks.innerHTML = gyms.map(g =>
+        `<a href="https://${g.gymId}.cruxgym.co.uk" target="_blank" class="btn-link green">${g.gymName} ↗</a>`
+      ).join('');
+    }
 
     list.innerHTML = gyms.map(g => {
       const base = 'https://' + g.gymId + '.cruxgym.co.uk';
@@ -318,7 +328,7 @@ async function loadGyms() {
             ${trialInfo ? '<span class="gym-meta-item" style="color:var(--gold)">' + trialInfo + '</span>' : ''}
           </div>
           <div class="gym-actions" style="justify-content:flex-start">
-            <a href="${base}" target="_blank" class="btn-link">Staff App ↗</a>
+            <a href="${base}" target="_blank" class="btn-link green">Staff Login ↗</a>
             <a href="${base}/me" target="_blank" class="btn-link gold">Member Portal ↗</a>
             <a href="${base}/register" target="_blank" class="btn-link green">Register ↗</a>
             <a href="${base}/invite" target="_blank" class="btn-link">Staff Invite ↗</a>
