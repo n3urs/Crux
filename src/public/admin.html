@@ -187,6 +187,10 @@
         <a href="https://cruxgym.co.uk/signup" target="_blank" class="btn-link gold">Gym Signup ↗</a>
         <a href="/admin" target="_blank" class="btn-link">Super Admin ↗</a>
       </div>
+      <div style="margin-top:1rem;margin-bottom:0.6rem;font-family:'JetBrains Mono',monospace;font-size:0.62rem;letter-spacing:2px;color:var(--text);text-transform:uppercase">Member Mobile App (pick a gym)</div>
+      <div id="me-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text)">Loading...</span>
+      </div>
     </div>
 
     <!-- Deploy -->
@@ -289,6 +293,15 @@ async function loadGyms() {
     if (!res.ok) throw new Error('Failed to load');
     const { gyms } = await res.json();
     if (!gyms.length) { list.innerHTML = '<div class="empty">No gyms provisioned yet.</div>'; return; }
+
+    // Populate member portal quick links
+    const meLinks = document.getElementById('me-links');
+    if (meLinks) {
+      meLinks.innerHTML = gyms.map(g =>
+        `<a href="https://${g.gymId}.cruxgym.co.uk/me" target="_blank" class="btn-link gold">${g.gymName} ↗</a>`
+      ).join('');
+    }
+
     list.innerHTML = gyms.map(g => {
       const base = 'https://' + g.gymId + '.cruxgym.co.uk';
       const lastActivity = g.lastActivity ? new Date(g.lastActivity).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : 'No activity';
