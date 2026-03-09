@@ -4508,6 +4508,7 @@ async function loadSettingsTabContent(tab) {
     case 'general': return loadGeneralSettings();
     case 'integrations': return loadIntegrationSettings();
     case 'waivers': return loadWaiverSettings();
+    case 'billing': return loadBillingSettings();
   }
 }
 
@@ -5671,6 +5672,123 @@ async function saveIntegration(e, type) {
     );
     await Promise.all(promises);
     showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} settings saved`, 'success');
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+// ---- Billing Tab ----
+
+async function loadBillingSettings() {
+  const container = document.getElementById('settings-tab-billing');
+  if (!container) return;
+  container.innerHTML = '<p class="text-gray-400 text-center py-8">Loading billing...</p>';
+
+  // Derive gymId from window.gymId or the subdomain
+  const gymId = window.gymId || window.location.hostname.split('.')[0] || '';
+
+  const statusBadge = (status) => {
+    const map = {
+      active:    'bg-green-100 text-green-800',
+      trialing:  'bg-green-100 text-green-800',
+      past_due:  'bg-yellow-100 text-yellow-800',
+      cancelled: 'bg-red-100 text-red-800',
+      unpaid:    'bg-red-100 text-red-800',
+    };
+    const label = { active: 'Active', trialing: 'Trial', past_due: 'Past Due', cancelled: 'Cancelled', unpaid: 'Unpaid' };
+    const cls = map[status] || 'bg-gray-100 text-gray-700';
+    return `<span class="${cls} px-2.5 py-0.5 rounded-full text-xs font-medium">${label[status] || status}</span>`;
+  };
+
+  try {
+    const billing = await api('GET', `/billing/status?gymId=${encodeURIComponent(gymId)}`);
+    const planNames = { starter: 'Starter', growth: 'Growth', scale: 'Scale' };
+    const planName = planNames[billing.plan] || billing.plan;
+
+    let dateInfo = '';
+    if (billing.status === 'trialing' && billing.trialEndsAt) {
+      dateInfo = `<p class="text-sm text-gray-500 mt-1">Trial ends: <strong>${formatDate(billing.trialEndsAt)}</strong></p>`;
+    } else if (billing.currentPeriodEnd) {
+      dateInfo = `<p class="text-sm text-gray-500 mt-1">Renews: <strong>${formatDate(billing.currentPeriodEnd)}</strong></p>`;
+    }
+
+    container.innerHTML = `
+      <div class="max-w-2xl">
+        <div class="bg-white border border-gray-200 rounded-xl p-6 mb-6">
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-lg font-semibold text-gray-900">${planName} Plan</h3>
+            ${statusBadge(billing.status)}
+          </div>
+          ${dateInfo}
+          <div class="flex gap-3 mt-4">
+            <button onclick="billingUpgrade('${gymId}')" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700">Upgrade plan</button>
+            <button onclick="billingPortal('${gymId}')" class="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200">Manage billing</button>
+          </div>
+        </div>
+
+        <h3 class="text-base font-semibold text-gray-900 mb-3">Plans</h3>
+        <div class="grid grid-cols-3 gap-4 mb-6">
+          <div class="border border-gray-200 rounded-xl p-4">
+            <p class="font-semibold text-gray-900">Starter</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">£59<span class="text-sm font-normal text-gray-500">/mo</span></p>
+            <ul class="mt-3 space-y-1 text-sm text-gray-600">
+              <li>Up to 200 members</li>
+              <li>Check-in & passes</li>
+              <li>Basic analytics</li>
+              <li>Email support</li>
+            </ul>
+          </div>
+          <div class="border-2 border-blue-500 rounded-xl p-4 relative">
+            <span class="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">Popular</span>
+            <p class="font-semibold text-gray-900">Growth</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">£99<span class="text-sm font-normal text-gray-500">/mo</span></p>
+            <ul class="mt-3 space-y-1 text-sm text-gray-600">
+              <li>Unlimited members</li>
+              <li>Everything in Starter</li>
+              <li>Waivers & events</li>
+              <li>Route setting tools</li>
+              <li>Priority support</li>
+            </ul>
+          </div>
+          <div class="border border-gray-200 rounded-xl p-4">
+            <p class="font-semibold text-gray-900">Scale</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">£149<span class="text-sm font-normal text-gray-500">/mo</span></p>
+            <ul class="mt-3 space-y-1 text-sm text-gray-600">
+              <li>Everything in Growth</li>
+              <li>Multi-location</li>
+              <li>Custom integrations</li>
+              <li>Dedicated support</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    container.innerHTML = `<p class="text-sm text-red-500 text-center py-8">Failed to load billing: ${err.message}</p>`;
+  }
+}
+
+async function billingUpgrade(gymId) {
+  try {
+    const successUrl = window.location.origin + '/app';
+    const cancelUrl = window.location.origin + '/app';
+    const data = await api('POST', '/billing/create-checkout', {
+      gymId,
+      plan: 'growth',
+      successUrl,
+      cancelUrl,
+    });
+    if (data.url) window.location.href = data.url;
+  } catch (err) {
+    showToast('Error: ' + err.message, 'error');
+  }
+}
+
+async function billingPortal(gymId) {
+  try {
+    const returnUrl = window.location.origin + '/app';
+    const data = await api('POST', '/billing/portal', { gymId, returnUrl });
+    if (data.url) window.location.href = data.url;
   } catch (err) {
     showToast('Error: ' + err.message, 'error');
   }

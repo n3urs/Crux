@@ -195,5 +195,6 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGINT', () => { closeAll(); process.exit(0); });
-process.on('SIGTERM', () => { closeAll(); process.exit(0); });
+const { closePlatformDb } = require('./src/main/database/platformDb');
+process.on('SIGINT', () => { closeAll(); closePlatformDb(); process.exit(0); });
+process.on('SIGTERM', () => { closeAll(); closePlatformDb(); process.exit(0); });
