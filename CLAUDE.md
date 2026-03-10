@@ -423,6 +423,36 @@ DEFAULT_GYM_ID=mygym PORT=8080 node server.js
 - `boulderryn-project/` folder and git remote URL still reference old name.
 - YouTube embeds use `youtube-nocookie.com` — works on live domain, may have issues on localhost with ad blockers.
 
+### 🐛 Bugs Found — Live Testing (2026-03-10)
+
+**BUG 1 🔴 Stripe checkout defaults to EUR not GBP**
+- `/signup` → Step 3 → "Start Trial" → Stripe checkout opens in EUR (€120.11) with Ireland as default country
+- Fix: pass `currency: 'gbp'` and/or `locale: 'en-GB'` when creating the Stripe checkout session
+- File: `src/routes/signup.js` — find `stripe.checkout.sessions.create(...)` and add `currency: 'gbp'`
+
+**BUG 2 🟡 POS "WARNING!!! No Profile Linked" — staff session not linked to POS**
+- Even when staff are logged in via PIN, the POS cart shows a red "WARNING!!! No Profile Linked" banner
+- `window.currentStaff` IS populated after PIN login — the POS init code just doesn't read it
+- Fix: on POS load, auto-link `window.currentStaff` to the POS profile instead of waiting for manual "Link member profile" button
+
+**BUG 3 🟡 Setup wizard re-triggers on every page load**
+- Once dismissed, wizard re-appears on every fresh page load until all 5 steps are complete
+- Escape key does not close it — only the Dismiss button works
+- Fix: `localStorage.setItem('wizard_dismissed', '1')` on dismiss; check on init and skip if set
+
+**BUG 5 🔴 Check-in crashes with 500 — member_tags.note column missing from schema**
+- **Where:** Visitors dashboard → search member → "Check in" button
+- **Error:** `Server error: no such column: mt.note` (seen in journalctl)
+- **Root cause:** `src/main/models/member.js` line ~211 queries `mt.note as member_note` where `mt` is `member_tags`, but the `member_tags` table schema only has: `member_id, tag_id, applied_at, applied_by` — no `note` column
+- **Fix:** Either (a) add `note TEXT` column to `member_tags` table via migration, or (b) remove `mt.note` from the SELECT if notes aren't used yet
+- **Impact:** HIGH — check-in is completely broken. Members cannot be checked in manually.
+
+**BUG 4 🔴 Noticeboard broken — GET /api/me/noticeboard uses requireMemberAuth, rejects staff**
+- Staff noticeboard page always shows "No posts yet" — GET returns 401
+- Root cause: `src/routes/me.js` ~line 215: `router.get('/noticeboard', requireMemberAuth, ...)` — this requires a member JWT, not a staff session
+- POST works (sends `x-staff-id` header correctly) but `loadNoticeboardPage()` called after POST also 401s, so new posts never appear
+- Fix: add `requireMemberOrStaffAuth` middleware that accepts either a member JWT or a valid `x-staff-id` header; apply to the GET route
+
 ---
 
 ## All URLs, Mapped Out
