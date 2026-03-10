@@ -12,7 +12,7 @@ mkdir -p "$DEST"
 
 # Back up platform DB
 if [ -f "$DATA_ROOT/platform.db" ]; then
-  sqlite3 "$DATA_ROOT/platform.db" ".backup '$DEST/platform.db'"
+  cp "$DATA_ROOT/platform.db" "$DEST/platform.db"
   echo "[backup] platform.db → $DEST/platform.db"
 fi
 
@@ -22,7 +22,7 @@ for GYM_DIR in "$DATA_ROOT/gyms"/*/; do
   DB="$GYM_DIR/gym.db"
   if [ -f "$DB" ]; then
     mkdir -p "$DEST/gyms/$GYM_ID"
-    sqlite3 "$DB" ".backup '$DEST/gyms/$GYM_ID/gym.db'"
+    cp "$DB" "$DEST/gyms/$GYM_ID/gym.db"
     echo "[backup] $GYM_ID/gym.db → $DEST/gyms/$GYM_ID/gym.db"
   fi
 done
