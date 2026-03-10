@@ -236,6 +236,13 @@ app.listen(PORT, () => {
   }
 
   console.log(`Crux running at http://localhost:${PORT}`);
+
+  // Onboarding email sequence — run on startup then every hour
+  const { checkAndSendSequenceEmails } = require('./src/services/emailSequence');
+  checkAndSendSequenceEmails().catch(err => console.warn('[sequence] startup check failed:', err.message));
+  setInterval(() => {
+    checkAndSendSequenceEmails().catch(err => console.warn('[sequence] hourly check failed:', err.message));
+  }, 60 * 60 * 1000);
 });
 
 // Graceful shutdown
