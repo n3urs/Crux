@@ -10,6 +10,7 @@ const GRADE_COLOURS = {
   VB:'#6B7280',V0:'#10B981',V1:'#3B82F6',V2:'#F59E0B',V3:'#EF4444',
   V4:'#8B5CF6',V5:'#EC4899',V6:'#F97316',V7:'#14B8A6',V8:'#1E3A5F',V9:'#111827',
 };
+const GRADE_ORDER = ['VB','V0','V1','V2','V3','V4','V5','V6','V7','V8','V9','V10','V11','V12'];
 
 let _session = null;
 let _mapData = null;
