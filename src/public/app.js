@@ -2053,6 +2053,10 @@ async function loadMembers() {
         <p class="text-gray-500 mt-1" id="member-count-text">Loading...</p>
       </div>
       <div class="flex gap-2">
+        <button onclick="showImportMembersModal()" class="btn btn-secondary flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          Import CSV
+        </button>
         <button onclick="exportMembersCSV()" class="btn btn-secondary flex items-center gap-1">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
           Export CSV
@@ -2165,6 +2169,145 @@ async function exportMembersCSV() {
     showToast(`Exported ${members.length} members`, 'success');
   } catch (err) {
     showToast('Export failed: ' + err.message, 'error');
+  }
+}
+
+function downloadImportTemplate() {
+  const headers = [
+    'First Name', 'Last Name', 'Email', 'Phone', 'Date of Birth', 'Gender',
+    'Address', 'City', 'Region', 'Postcode',
+    'Emergency Contact', 'Emergency Phone', 'Medical Conditions', 'Notes', 'Member Since'
+  ];
+  const exampleRow = [
+    'Jane', 'Smith', 'jane.smith@example.com', '07700 900123', '15/06/1990', 'female',
+    '12 High Street', 'London', 'Greater London', 'EC1A 1BB',
+    'John Smith', '07700 900456', '', '', '01/01/2023'
+  ];
+  const csv = [headers.join(','), exampleRow.join(',')].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'crux-member-import-template.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function showImportMembersModal() {
+  const modal = document.createElement('div');
+  modal.id = 'import-members-modal';
+  modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+  modal.innerHTML = `
+    <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-lg font-bold text-gray-900">Import Members from CSV</h3>
+        <button onclick="document.getElementById('import-members-modal').remove()" class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+      </div>
+
+      <p class="text-sm text-gray-600 mb-3">
+        Upload a CSV file exported from another gym management system. Columns are matched flexibly — the order doesn't matter.
+      </p>
+
+      <div class="bg-gray-50 rounded-lg p-3 mb-4 text-xs text-gray-600 space-y-1">
+        <p class="font-semibold text-gray-700 mb-1">Recognised columns (case-insensitive):</p>
+        <p>First Name, Last Name, Email, Phone / Mobile, Date of Birth / DOB</p>
+        <p>Gender, Address, City, Region / County, Postcode / Post Code</p>
+        <p>Emergency Contact, Emergency Phone, Medical Conditions, Notes</p>
+        <p>Member Since / Join Date</p>
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Select CSV file</label>
+        <input type="file" id="import-csv-file" accept=".csv"
+          class="block w-full text-sm text-gray-700 border border-gray-300 rounded-lg cursor-pointer bg-white p-2 focus:outline-none focus:ring-2 focus:ring-[#1E3A5F]">
+      </div>
+
+      <div id="import-result" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
+
+      <div class="flex flex-col sm:flex-row gap-2 justify-between items-center">
+        <button onclick="downloadImportTemplate()" class="text-sm text-[#1E3A5F] underline hover:no-underline">
+          Download template CSV
+        </button>
+        <div class="flex gap-2">
+          <button onclick="document.getElementById('import-members-modal').remove()" class="btn btn-secondary">Cancel</button>
+          <button onclick="runMemberImport()" id="import-submit-btn" class="btn btn-primary flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            Import
+          </button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+  // Close on backdrop click
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+}
+
+async function runMemberImport() {
+  const fileInput = document.getElementById('import-csv-file');
+  const resultEl = document.getElementById('import-result');
+  const submitBtn = document.getElementById('import-submit-btn');
+
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    showToast('Please select a CSV file first.', 'error');
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const formData = new FormData();
+  formData.append('file', file);
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Importing…';
+  if (resultEl) { resultEl.className = 'hidden mb-4 p-3 rounded-lg text-sm'; resultEl.innerHTML = ''; }
+
+  try {
+    const token = localStorage.getItem('authToken');
+    const resp = await fetch('/api/import/members', {
+      method: 'POST',
+      headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+      body: formData,
+    });
+
+    const data = await resp.json();
+
+    if (!resp.ok || !data.ok) {
+      throw new Error(data.error || 'Import failed');
+    }
+
+    // Show result
+    let html = `<p class="font-semibold text-green-700">Import complete</p>
+      <p class="text-gray-700 mt-1">Imported <strong>${data.imported}</strong> member${data.imported !== 1 ? 's' : ''}${data.skipped > 0 ? `, skipped <strong>${data.skipped}</strong> duplicate${data.skipped !== 1 ? 's' : ''} or blank rows` : ''}.</p>`;
+    if (data.errors && data.errors.length > 0) {
+      html += `<p class="text-orange-600 mt-2 font-medium">Warnings (${data.errors.length}):</p><ul class="list-disc list-inside text-orange-600 text-xs mt-1 space-y-0.5">`;
+      data.errors.slice(0, 10).forEach(e => { html += `<li>${e}</li>`; });
+      if (data.errors.length > 10) html += `<li>…and ${data.errors.length - 10} more</li>`;
+      html += '</ul>';
+    }
+
+    if (resultEl) {
+      resultEl.className = 'mb-4 p-3 rounded-lg text-sm bg-green-50 border border-green-200';
+      resultEl.innerHTML = html;
+    }
+
+    showToast(`Imported ${data.imported} members`, 'success');
+
+    // Refresh the members list in the background
+    await refreshMembersList();
+
+  } catch (err) {
+    if (resultEl) {
+      resultEl.className = 'mb-4 p-3 rounded-lg text-sm bg-red-50 border border-red-200 text-red-700';
+      resultEl.innerHTML = `<p class="font-semibold">Import failed</p><p class="mt-1">${err.message}</p>`;
+    }
+    showToast('Import failed: ' + err.message, 'error');
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg> Import`;
+    }
   }
 }
 

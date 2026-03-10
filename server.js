@@ -178,6 +178,7 @@ app.use('/api/settings', require('./src/routes/settings'));
 app.use('/api/onboarding', require('./src/routes/onboarding'));
 app.use('/api/stats', require('./src/routes/stats'));
 app.use('/api/export', require('./src/routes/export'));
+app.use('/api/import', require('./src/routes/import'));
 app.use('/api', require('./src/routes/register'));
 app.use('/api/dojo', require('./src/routes/dojo'));
 app.use('/api/me', require('./src/routes/me'));
