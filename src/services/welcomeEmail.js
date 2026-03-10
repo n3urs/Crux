@@ -5,9 +5,8 @@
 
 const nodemailer = require('nodemailer');
 
-// Gmail SMTP credentials (from environment or hardcoded fallback)
 const SMTP_USER = process.env.SMTP_USER || 'cruxgymhq@gmail.com';
-const SMTP_PASS = process.env.SMTP_PASS || 'tzrhwxyfpjgnfraz';
+const SMTP_PASS = process.env.SMTP_PASS;
 const SMTP_FROM = process.env.SMTP_FROM || 'Crux <hello@cruxgym.co.uk>';
 
 const transporter = nodemailer.createTransport({
