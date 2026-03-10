@@ -8,6 +8,8 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 const { getPlatformDb } = require('../main/database/platformDb');
 const { provisionGym } = require('../../scripts/provision-gym');
 const { sendWelcomeEmail } = require('../services/welcomeEmail');
@@ -176,13 +178,48 @@ router.post('/gyms/:gymId/activate', (req, res) => {
   }
 });
 
+// ── POST /admin/impersonate/:gymId ─────────────────────────────────────────
+
+router.post('/impersonate/:gymId', (req, res) => {
+  const { gymId } = req.params;
+  const dataRoot = getDataRoot();
+  const gymDbPath = path.join(dataRoot, 'gyms', gymId, 'gym.db');
+
+  if (!fs.existsSync(gymDbPath)) {
+    return res.status(404).json({ error: 'Gym not found' });
+  }
+
+  try {
+    const Database = require('better-sqlite3');
+    const gymDb = new Database(gymDbPath, { readonly: true });
+    const owner = gymDb.prepare("SELECT id, first_name, last_name, email, role FROM staff WHERE role = 'owner' LIMIT 1").get();
+    gymDb.close();
+
+    if (!owner) {
+      return res.status(404).json({ error: 'No owner account found for this gym' });
+    }
+
+    const token = jwt.sign(
+      { staffId: owner.id, gymId, role: owner.role, impersonated: true },
+      process.env.JWT_SECRET || 'crux_dev_secret',
+      { expiresIn: '15m' }
+    );
+
+    res.json({ ok: true, token, gymId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── GET /admin/stats ───────────────────────────────────────────────────────
+
+const PLAN_PRICES = { starter: 59, growth: 99, scale: 149 };
 
 router.get('/stats', (req, res) => {
   try {
     const dataRoot = getDataRoot();
     const gymsDir = path.join(dataRoot, 'gyms');
-    if (!fs.existsSync(gymsDir)) return res.json({ totalGyms: 0, totalMembers: 0, totalRevenue: 0, activeGyms: 0, trialingGyms: 0, suspendedGyms: 0 });
+    if (!fs.existsSync(gymsDir)) return res.json({ totalGyms: 0, totalMembers: 0, totalRevenue: 0, activeGyms: 0, trialingGyms: 0, suspendedGyms: 0, mrr: 0, trialEndingSoon: [] });
 
     const gymIds = fs.readdirSync(gymsDir).filter(f => {
       const dbPath = path.join(gymsDir, f, 'gym.db');
@@ -190,7 +227,9 @@ router.get('/stats', (req, res) => {
     });
 
     const platformDb = getPlatformDb();
-    let totalMembers = 0, totalRevenue = 0, activeGyms = 0, trialingGyms = 0, suspendedGyms = 0;
+    let totalMembers = 0, totalRevenue = 0, activeGyms = 0, trialingGyms = 0, suspendedGyms = 0, mrr = 0;
+    const trialEndingSoon = [];
+    const now = Date.now();
 
     for (const gymId of gymIds) {
       try {
@@ -198,19 +237,39 @@ router.get('/stats', (req, res) => {
         const gymDb = new Database(path.join(gymsDir, gymId, 'gym.db'), { readonly: true });
         const mc = gymDb.prepare('SELECT COUNT(*) as c FROM members').get();
         const rev = gymDb.prepare("SELECT SUM(total_amount) as r FROM transactions WHERE status = 'completed'").get();
+        const gymNameRow = gymDb.prepare("SELECT value FROM settings WHERE key = 'gym_name'").get();
         totalMembers += mc?.c || 0;
         totalRevenue += rev?.r || 0;
         gymDb.close();
 
-        const billing = platformDb.prepare('SELECT status, trial_ends_at FROM gym_billing WHERE gym_id = ?').get(gymId);
+        const billing = platformDb.prepare('SELECT * FROM gym_billing WHERE gym_id = ?').get(gymId);
         const status = billing?.status || 'trialing';
-        if (status === 'active') activeGyms++;
-        else if (status === 'suspended') suspendedGyms++;
-        else trialingGyms++;
+        if (status === 'active') {
+          activeGyms++;
+          mrr += PLAN_PRICES[billing?.plan || 'growth'] || 99;
+        } else if (status === 'suspended') {
+          suspendedGyms++;
+        } else {
+          trialingGyms++;
+          // Trial ending within 7 days?
+          if (billing?.trial_ends_at) {
+            const daysLeft = (new Date(billing.trial_ends_at).getTime() - now) / (1000 * 60 * 60 * 24);
+            if (daysLeft >= 0 && daysLeft <= 7) {
+              trialEndingSoon.push({
+                gymId,
+                gymName: gymNameRow?.value || gymId,
+                daysLeft: Math.ceil(daysLeft),
+                trialEndsAt: billing.trial_ends_at,
+              });
+            }
+          }
+        }
       } catch {}
     }
 
-    res.json({ totalGyms: gymIds.length, totalMembers, totalRevenue, activeGyms, trialingGyms, suspendedGyms });
+    trialEndingSoon.sort((a, b) => a.daysLeft - b.daysLeft);
+
+    res.json({ totalGyms: gymIds.length, totalMembers, totalRevenue, activeGyms, trialingGyms, suspendedGyms, mrr, trialEndingSoon });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

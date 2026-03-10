@@ -65,6 +65,25 @@ router.post('/auth/password', (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// Admin impersonation — verify a short-lived JWT issued by /admin/impersonate
+router.post('/auth/token', (req, res, next) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: 'Token required' });
+
+    const jwt = require('jsonwebtoken');
+    const payload = jwt.verify(token, process.env.JWT_SECRET || 'crux_dev_secret');
+    if (!payload.impersonated) return res.status(403).json({ error: 'Not an impersonation token' });
+
+    const staff = Staff.getById(payload.staffId);
+    if (!staff) return res.status(404).json({ error: 'Staff not found' });
+
+    res.json({ staff: { ...staff, impersonated: true } });
+  } catch (e) {
+    res.status(401).json({ error: 'Invalid or expired token' });
+  }
+});
+
 // ── Staff invite flow ──────────────────────────────────────────────────────
 
 router.post('/:id/invite', async (req, res, next) => {

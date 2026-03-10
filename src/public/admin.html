@@ -166,7 +166,17 @@
       <div class="stat-card"><div class="stat-label">Active</div><div class="stat-value green" id="stat-active">—</div></div>
       <div class="stat-card"><div class="stat-label">Trialing</div><div class="stat-value" id="stat-trialing">—</div></div>
       <div class="stat-card"><div class="stat-label">Suspended</div><div class="stat-value red" id="stat-suspended">—</div></div>
-      <div class="stat-card"><div class="stat-label">Revenue</div><div class="stat-value gold" id="stat-revenue">—</div></div>
+      <div class="stat-card"><div class="stat-label">MRR</div><div class="stat-value gold" id="stat-mrr">—</div></div>
+      <div class="stat-card"><div class="stat-label">Member Revenue</div><div class="stat-value gold" id="stat-revenue">—</div></div>
+    </div>
+
+    <!-- Trial ending soon -->
+    <div id="trial-alert-section" style="display:none;margin-bottom:2rem">
+      <div class="section-header">
+        <div class="section-title" style="color:var(--gold)">⚠ Trials Ending Soon</div>
+        <div class="section-line" style="background:linear-gradient(90deg,rgba(245,158,11,0.3),transparent)"></div>
+      </div>
+      <div id="trial-alert-list" style="display:flex;flex-direction:column;gap:0.5rem"></div>
     </div>
 
     <!-- Platform Links -->
@@ -285,8 +295,40 @@ async function loadStats() {
     document.getElementById('stat-active').textContent = d.activeGyms;
     document.getElementById('stat-trialing').textContent = d.trialingGyms;
     document.getElementById('stat-suspended').textContent = d.suspendedGyms;
+    document.getElementById('stat-mrr').textContent = '£' + (d.mrr || 0).toLocaleString('en-GB');
     document.getElementById('stat-revenue').textContent = '£' + ((d.totalRevenue || 0) / 100).toLocaleString('en-GB', { minimumFractionDigits: 0 });
+
+    // Trial ending soon panel
+    const alertSection = document.getElementById('trial-alert-section');
+    const alertList = document.getElementById('trial-alert-list');
+    if (d.trialEndingSoon && d.trialEndingSoon.length > 0) {
+      alertSection.style.display = 'block';
+      alertList.innerHTML = d.trialEndingSoon.map(g => `
+        <div style="background:rgba(245,158,11,0.07);border:1px solid rgba(245,158,11,0.25);border-radius:6px;padding:0.875rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap">
+          <div>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.85rem;color:var(--gold);font-weight:700">${g.gymName}</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:var(--text);margin-left:0.75rem">${g.gymId}</span>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:0.75rem;color:${g.daysLeft <= 1 ? 'var(--red)' : 'var(--gold)'}">
+            ${g.daysLeft === 0 ? 'EXPIRES TODAY' : g.daysLeft === 1 ? 'EXPIRES TOMORROW' : g.daysLeft + ' DAYS LEFT'}
+          </span>
+        </div>
+      `).join('');
+    } else {
+      alertSection.style.display = 'none';
+    }
   } catch {}
+}
+
+async function openGym(gymId) {
+  try {
+    const res = await fetch('/admin/impersonate/' + gymId + '?adminToken=' + encodeURIComponent(adminToken), { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) { alert('Error: ' + data.error); return; }
+    window.open('https://' + gymId + '.cruxgym.co.uk/?adminToken=' + encodeURIComponent(data.token), '_blank');
+  } catch (err) {
+    alert('Connection error: ' + err.message);
+  }
 }
 
 async function loadGyms() {
@@ -334,6 +376,8 @@ async function loadGyms() {
             <a href="${base}/invite" target="_blank" class="btn-link">Staff Invite ↗</a>
             <a href="${base}/privacy" target="_blank" class="btn-link">Privacy ↗</a>
             <a href="${base}/admin" target="_blank" class="btn-link">Admin ↗</a>
+            <div class="divider"></div>
+            <button class="btn-link" style="border-color:rgba(0,194,255,0.5);color:var(--blue)" onclick="openGym('${g.gymId}')">⚡ Open Gym</button>
             <div class="divider"></div>
             ${g.status === 'suspended'
               ? '<button class="btn-succeed" onclick="activateGym(\'' + g.gymId + '\')">Activate</button>'

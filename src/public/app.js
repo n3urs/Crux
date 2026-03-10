@@ -7216,10 +7216,31 @@ async function deleteNoticeboardPost(id) {
   }
 }
 
-// Init — no login required, check first run then load dashboard
-restoreSession();
-checkFirstRun();
-loadPage('dashboard');
+// Init — check for admin impersonation token, then restore session
+(async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const adminToken = params.get('adminToken');
+  if (adminToken) {
+    try {
+      const res = await fetch('/api/staff/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: adminToken }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        saveSession(data.staff);
+        // Clean URL
+        const url = new URL(window.location.href);
+        url.searchParams.delete('adminToken');
+        window.history.replaceState({}, '', url.toString());
+      }
+    } catch { /* fall through to normal session restore */ }
+  }
+  restoreSession();
+  checkFirstRun();
+  loadPage('dashboard');
+})();
 
 // ============================================================
 // Onboarding Setup Wizard
